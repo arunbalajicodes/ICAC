@@ -193,3 +193,12 @@ footer nav{display:flex;gap:26px;flex-wrap:wrap}footer nav a,.footer-bottom a{co
 .main-nav .admin-link{color:var(--muted)!important;display:inline-flex;gap:4px;align-items:center}
 @media(max-width:960px){.main-nav a.admin-link{display:inline-flex!important}}
 .detail-card{scroll-margin-top:96px}
+.topbar{height:96px!important}.topbar .logo{height:66px}
+.brand{gap:18px}.brand-text{padding-left:18px;gap:4px}.brand-text strong{font-size:16px;letter-spacing:.08em}.brand-text small{font-size:12.5px;letter-spacing:.1em}
+.footer-brand .logo{height:64px!important}.footer-brand b{font-size:16px}.footer-brand small{font-size:13.5px}
+@media(max-width:960px){.topbar{height:80px!important}.topbar .logo{height:52px}.brand-text strong{font-size:13px}.brand-text small{font-size:11px}}
+@media(max-width:600px){.topbar .logo{height:46px}}
+.event-section,.campus,.content-grid{scroll-margin-top:110px}
+.brand{flex-shrink:0}.brand-text{white-space:nowrap}
+.main-nav{gap:2px!important}.main-nav .navlink{padding:9px 11px!important;font-size:13px!important}
+@media(max-width:1100px){.brand-text strong{font-size:14px}.brand-text small{font-size:11px}.main-nav .navlink{padding:8px 8px!important}}
