@@ -279,3 +279,11 @@ footer:before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;
 .hero-figure:after{display:none}
 .fig-tag{top:26px!important}
 .hero-foot{margin-top:56px!important;padding-top:20px!important;border-top:1px solid var(--line)!important}
+
+/* moot proposition: same two-column rhythm as other sections, scene spans full width */
+.proposition{grid-template-columns:minmax(260px,.85fr) minmax(0,1.4fr)!important;gap:48px 72px!important;align-items:start!important}
+.proposition>.scene-card{grid-column:1/-1}
+.proposition h2{margin-bottom:0!important}
+.proposition .intro-copy p{margin:0 0 4px;font-size:17px;line-height:1.75;color:var(--muted);max-width:none}
+.proposition .theme-chips{margin-top:24px}
+@media(max-width:960px){.proposition{grid-template-columns:1fr!important;gap:28px!important}}
