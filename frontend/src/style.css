@@ -192,3 +192,4 @@ footer nav{display:flex;gap:26px;flex-wrap:wrap}footer nav a,.footer-bottom a{co
 @media(max-width:600px){.coordinators{grid-template-columns:1fr}}
 .main-nav .admin-link{color:var(--muted)!important;display:inline-flex;gap:4px;align-items:center}
 @media(max-width:960px){.main-nav a.admin-link{display:inline-flex!important}}
+.detail-card{scroll-margin-top:96px}
