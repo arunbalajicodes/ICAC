@@ -115,3 +115,12 @@ footer{border-color:var(--line);color:var(--muted)}.footer-brand .logo{height:30
 @media(max-width:600px){.brand-text{display:none}.campus{height:200px}}
 .event-notice b,.event-notice a,.event-timeline b,.text-action,.hero-explore{color:var(--blue)!important}
 .stat-band,.campus{margin-left:0;margin-right:0}
+.content-grid{background:var(--blue);box-shadow:0 0 0 100vmax var(--blue);clip-path:inset(0 -100vmax);padding:70px 0 80px}
+.side-img{width:100%;aspect-ratio:16/10;object-fit:cover;display:block;margin-bottom:28px}
+.side-copy .section-kicker,.side-copy h2,.side-copy>p,.side-copy .step b{color:#fff!important}
+.side-copy .step small,.side-copy .note-card,.side-copy .note-card b{color:#ffffffc0!important}
+.side-copy .step>span{border-color:#ffffff80;color:#fff}.side-copy .note-card{background:none!important;border-color:#ffffff40!important}
+.campus{height:420px}
+.hero{min-height:700px;overflow:visible!important;padding-bottom:64px!important}.hero-figure{height:540px;align-self:center}
+.hero{grid-template-rows:repeat(5,auto);align-content:center;row-gap:0}.hero-figure{grid-row:1/6}.hero-meta{margin-top:28px}
+@media(max-width:900px){.hero-figure{grid-row:auto}}
