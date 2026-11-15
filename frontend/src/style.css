@@ -291,3 +291,52 @@ footer:before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;
 /* timeline: station dots centred on the track (track centre = 22px; dot 22px wide) */
 .event-timeline.route>div:before{left:-49px!important;box-sizing:border-box}
 @media(max-width:600px){.event-timeline.route>div:before{left:-45px!important}}
+
+/* audit fix: content-visibility caused placeholder heights / layout jumps */
+.event-section,.countdown,.highlights,footer{content-visibility:visible!important;contain-intrinsic-size:none!important}
+
+/* ===== audit pass: spacing, headings, format layout, mobile ===== */
+.event-section{padding:72px var(--gx)!important;gap:48px 72px!important}
+.countdown{padding:44px var(--gx)!important}.highlights{padding:36px var(--gx)!important}
+.campus{min-height:440px!important}
+.hero{padding:72px var(--gx) 56px!important}
+.event-section h2 br{display:none}
+.event-section h2,.campus-copy h2,.countdown h2{text-wrap:balance}
+.event-section h2 em,.campus-copy h2 em{display:block}
+.event-section h2{margin:12px 0 16px!important}
+#format{grid-template-columns:1fr!important;gap:32px!important}
+#format .event-cards{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+#format .event-intro{max-width:640px!important}
+#resources>div:first-child,#schedule>div:first-child,#faq>div:first-child,#announcements>div:first-child{position:sticky;top:124px;align-self:start}
+.event-cards article{display:flex;flex-direction:column}.event-cards article .tbp{align-self:flex-start;margin-top:auto}.event-cards article p{margin:0 0 14px}
+.footer-top{row-gap:20px}
+@media(max-width:960px){
+ .event-section{padding:52px var(--gx)!important;gap:24px!important}
+ #format .event-cards{grid-template-columns:1fr!important}
+ #resources>div:first-child,#schedule>div:first-child,#faq>div:first-child,#announcements>div:first-child{position:static}
+ .hero{row-gap:0!important;column-gap:0!important;padding:44px var(--gx) 40px!important;gap:0!important}
+ .hero-figure{margin-top:40px!important}
+ .hero-foot{margin-top:32px!important;gap:6px}
+ .countdown{padding:36px var(--gx)!important}.highlights{padding:28px var(--gx)!important}
+ .campus{min-height:360px!important}
+ .content-grid{padding:48px var(--gx)!important}
+}
+@media(max-width:600px){
+ :root{--gx:18px}
+ .topbar{height:72px!important;padding:0 14px!important;gap:8px}.topbar .logo{height:42px!important}.brand-text{display:none!important}
+ .main-nav{overflow:visible!important;flex-wrap:nowrap!important;gap:2px!important}.main-nav .navlink{padding:8px 10px!important;font-size:12.5px!important;white-space:nowrap}
+ .main-nav a[href="#registration"]{margin:0 2px 0 0!important}
+ .hero h1{font-size:44px!important;margin:14px 0 18px!important}.hero-copy{font-size:16px!important;margin:0 0 26px!important}.hero-cta-row{margin:0 0 28px!important}
+ .hero-meta{display:grid!important;grid-template-columns:1fr!important;gap:18px!important;padding-top:22px}.hero-meta>div{display:flex!important}
+ .hero-figure{aspect-ratio:auto!important;min-height:0!important;height:430px!important}
+ .stat-band>div{padding:18px 14px!important}.stat-band b{font-size:14px}
+ .hl{padding:22px 20px;gap:14px}.hl b{font-size:22px}
+ .countdown h2{font-size:30px}.count-boxes>div{padding:12px 2px}
+ .event-section h2{font-size:32px!important}
+ .campus-copy h2{font-size:34px}
+ .update-card{padding:22px}
+ .scene-card{overflow:hidden}.photo-scene{min-width:640px}
+ .form-card{padding:22px 16px!important}
+ footer{padding:48px var(--gx) 28px!important}.footer-bottom{flex-direction:column;gap:12px}
+}
+@media(max-width:600px){.topbar{padding:0 12px!important}.topbar .logo{height:38px!important}.main-nav .navlink{padding:8px 7px!important;font-size:12px!important}.main-nav .admin-link svg{display:none}}
