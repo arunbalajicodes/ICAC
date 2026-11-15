@@ -264,3 +264,11 @@ footer:before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;
 .mini-train{width:460px!important;left:-480px!important;animation:strip 20s linear infinite!important}
 .mini-train.t2{animation-delay:-10s!important}
 @keyframes strip{from{transform:translateX(0)}to{transform:translateX(calc(100vw + 500px))}}
+
+/* exact-photo scene with moving train */
+.photo-scene{position:relative;line-height:0}
+.ps-plate{display:block;width:100%;height:auto}
+.ps-lane{position:absolute;left:0;right:0;top:53.29%;height:15.22%;overflow:hidden}
+.ps-train{position:absolute;left:0;top:0;height:100%;width:auto;max-width:none;animation:ps-run 14s linear infinite;will-change:transform}
+@keyframes ps-run{from{transform:translateX(117.8%)}to{transform:translateX(-100%)}}
+.scene-card{background:#0a1236!important}
