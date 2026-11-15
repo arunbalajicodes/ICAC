@@ -2,7 +2,7 @@ import React, {useEffect, useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Scale, ArrowUpRight, ShieldCheck, CalendarDays, Users, CheckCircle2, Clock3, XCircle, Download, Search, LogOut, ChevronRight, FileClock, Plus, Trash2, Menu} from 'lucide-react';
 import './style.css';
-const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const API = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '');
 const REGISTRATION_OPENS_AT = Date.parse('2026-10-26T00:00:00+05:30');
 const REGISTRATION_CLOSES_AT = Date.parse('2026-11-26T23:59:59+05:30');
 const registrationOpenNow = Date.now() >= REGISTRATION_OPENS_AT && Date.now() <= REGISTRATION_CLOSES_AT;

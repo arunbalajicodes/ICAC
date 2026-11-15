@@ -14,6 +14,9 @@ from dotenv import load_dotenv
 
 BASE = Path(__file__).resolve().parent
 DATA = BASE.parent / "data"
+if os.getenv("VERCEL"):  # ponytail: /tmp is ephemeral on Vercel; swap in a real DB for persistence
+    import shutil
+    DATA = Path("/tmp/data"); shutil.copytree(BASE.parent / "data", DATA, dirs_exist_ok=True)
 DATA.mkdir(exist_ok=True)
 load_dotenv(BASE.parent / ".env")
 with open(BASE / "config.json", encoding="utf-8") as f:
