@@ -249,3 +249,18 @@ footer:before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;
 @media(max-width:600px){.event-timeline.route{padding-left:52px!important}.event-timeline.route:before{left:10px}.event-timeline.route>div:before{left:-45px!important}}
 .proposition{grid-template-columns:1fr!important;gap:44px!important}
 .proposition .event-intro{max-width:720px!important}
+
+/* continuous trains */
+.sc-train{animation:drive 17s linear infinite!important}
+@keyframes drive{from{transform:translateX(-1010px)}to{transform:translateX(1010px)}}
+.mini-train{width:344px!important;left:-360px!important;animation:strip 18s linear infinite!important}
+.mini-train.t2{animation-delay:-9s!important}
+@keyframes strip{from{transform:translateX(0)}to{transform:translateX(calc(100vw + 380px))}}
+
+/* poster-style night scene + longer continuous trains */
+.scene-card{background:#0a1236!important;border-color:#1d2663!important;box-shadow:0 24px 60px rgba(10,18,54,.35)!important}
+.sc-train{animation:drive 22s linear infinite!important}
+@keyframes drive{from{transform:translateX(-1330px)}to{transform:translateX(1010px)}}
+.mini-train{width:460px!important;left:-480px!important;animation:strip 20s linear infinite!important}
+.mini-train.t2{animation-delay:-10s!important}
+@keyframes strip{from{transform:translateX(0)}to{transform:translateX(calc(100vw + 500px))}}
