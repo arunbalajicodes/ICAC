@@ -287,3 +287,7 @@ footer:before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;
 .proposition .intro-copy p{margin:0 0 4px;font-size:17px;line-height:1.75;color:var(--muted);max-width:none}
 .proposition .theme-chips{margin-top:24px}
 @media(max-width:960px){.proposition{grid-template-columns:1fr!important;gap:28px!important}}
+
+/* timeline: station dots centred on the track (track centre = 22px; dot 22px wide) */
+.event-timeline.route>div:before{left:-49px!important;box-sizing:border-box}
+@media(max-width:600px){.event-timeline.route>div:before{left:-45px!important}}
