@@ -272,3 +272,10 @@ footer:before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;
 .ps-train{position:absolute;left:0;top:0;height:100%;width:auto;max-width:none;animation:ps-run 14s linear infinite;will-change:transform}
 @keyframes ps-run{from{transform:translateX(117.8%)}to{transform:translateX(-100%)}}
 .scene-card{background:#0a1236!important}
+
+/* rectangular statue frame, no hero train */
+.hero-figure,.hero-figure:before,.hero-figure:after{border-radius:20px!important}
+.hero-figure:before{inset:12px;border:1px solid var(--gold-2)}
+.hero-figure:after{display:none}
+.fig-tag{top:26px!important}
+.hero-foot{margin-top:56px!important;padding-top:20px!important;border-top:1px solid var(--line)!important}
