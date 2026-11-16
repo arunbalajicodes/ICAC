@@ -202,7 +202,7 @@ footer nav{display:flex;gap:26px;flex-wrap:wrap}footer nav a,.footer-bottom a{co
 .brand{flex-shrink:0}.brand-text{white-space:nowrap}
 .main-nav{gap:2px!important}.main-nav .navlink{padding:9px 11px!important;font-size:13px!important}
 @media(max-width:1100px){.brand-text strong{font-size:14px}.brand-text small{font-size:11px}.main-nav .navlink{padding:8px 8px!important}}
-.highlights{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:44px var(--gx);background:var(--cream)}
+.highlights{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;padding:44px var(--gx);background:var(--cream)}
 .hl{display:flex;gap:20px;align-items:flex-start;padding:28px 30px;background:linear-gradient(135deg,#fff8e4,#fbeccb);border:1px solid var(--gold-2);border-radius:var(--r);box-shadow:0 10px 30px rgba(120,84,20,.08)}
 .hl-icon{flex:0 0 52px;height:52px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center}
 .hl small{font-size:11px;letter-spacing:.16em;font-weight:700;color:var(--gold)}.hl b{display:block;font-family:var(--serif);font-weight:500;font-size:26px;color:var(--navy);margin:4px 0 6px;line-height:1.2}.hl p{margin:0;color:var(--muted);font-size:15px;line-height:1.6}
@@ -340,3 +340,6 @@ footer:before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;
  footer{padding:48px var(--gx) 28px!important}.footer-bottom{flex-direction:column;gap:12px}
 }
 @media(max-width:600px){.topbar{padding:0 12px!important}.topbar .logo{height:38px!important}.main-nav .navlink{padding:8px 7px!important;font-size:12px!important}.main-nav .admin-link svg{display:none}}
+
+.rulebook{grid-column:1/-1;margin-top:32px}.rulebook-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}.rulebook iframe{width:100%;height:80vh;min-height:480px;border:1px solid rgba(128,128,128,.3);border-radius:8px;background:#fff}
+.awards table{width:100%;border-collapse:collapse;background:#fff8ea;border:1px solid var(--line);border-radius:12px;overflow:hidden}.awards th,.awards td{padding:14px 18px;text-align:left;border-bottom:1px solid var(--line)}.awards th{font-size:11px;letter-spacing:.14em;color:var(--gold)}.awards td+td,.awards th+th{text-align:right;white-space:nowrap}.awards tfoot td{font-weight:700;color:var(--navy);border-bottom:0}.awards ul{margin:18px 0 0;padding-left:20px;color:var(--muted);line-height:1.7;font-size:15px}
