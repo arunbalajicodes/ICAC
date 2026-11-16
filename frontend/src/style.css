@@ -351,3 +351,5 @@ footer:before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;
 .app-shell .main-nav .navlink{font-size:14px!important}
 @media(max-width:1100px){.app-shell .main-nav .navlink{font-size:13px!important}}
 @media(max-width:600px){.app-shell .main-nav .navlink{font-size:12.5px!important}}
+@media(max-width:1350px){.app-shell .secure{display:none}.app-shell .main-nav .navlink{padding:8px 9px!important}}
+@media(max-width:1180px){.app-shell .main-nav .navlink{font-size:13px!important;padding:8px 7px!important}.app-shell .brand-text strong{font-size:13px!important}}
