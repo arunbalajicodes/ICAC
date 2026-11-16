@@ -342,3 +342,12 @@ footer:before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;
 @media(max-width:600px){.topbar{padding:0 12px!important}.topbar .logo{height:38px!important}.main-nav .navlink{padding:8px 7px!important;font-size:12px!important}.main-nav .admin-link svg{display:none}}
 
 .awards table{width:100%;border-collapse:collapse;background:#fff8ea;border:1px solid var(--line);border-radius:12px;overflow:hidden}.awards th,.awards td{padding:14px 18px;text-align:left;border-bottom:1px solid var(--line)}.awards th{font-size:11px;letter-spacing:.14em;color:var(--gold)}.awards td+td,.awards th+th{text-align:right;white-space:nowrap}.awards tfoot td{font-weight:700;color:var(--navy);border-bottom:0}.awards ul{margin:18px 0 0;padding-left:20px;color:var(--muted);line-height:1.7;font-size:15px}
+
+/* readability floor */
+.app-shell .event-cards p,.app-shell .event-faq p,.app-shell .event-timeline small,.app-shell .note-card p,.app-shell .step small,.app-shell .consent,.app-shell .fineprint,.app-shell .phone-hint,.app-shell .field>span,.app-shell .hero-meta strong{font-size:15px!important}
+.app-shell .event-timeline b,.app-shell .event-faq summary,.app-shell .tbp,.app-shell .secure,.app-shell .required-label,.app-shell .awards th{font-size:13px!important}
+.app-shell .section-kicker,.app-shell .hl small,.app-shell .hero-meta small,.app-shell .stat-band small,.app-shell .count-boxes small,.app-shell .brand-text small,.app-shell .edition,.app-shell .hero .eyebrow,.app-shell .fig-tag,.app-shell .hero-figure small,.app-shell .campus-copy small,.app-shell .coordinators>small,.app-shell .footer-bottom a,.app-shell .footer-brand b{font-size:13px!important}
+.app-shell .brand-text strong{font-size:15px!important}
+.app-shell .main-nav .navlink{font-size:14px!important}
+@media(max-width:1100px){.app-shell .main-nav .navlink{font-size:13px!important}}
+@media(max-width:600px){.app-shell .main-nav .navlink{font-size:12.5px!important}}
