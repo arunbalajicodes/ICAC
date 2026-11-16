@@ -129,7 +129,7 @@ def health(): return {"ok": True, "event": CONFIG["event_name"]}
 def public_config():
     current = datetime.now(TZ)
     opens, closes = parse_time("registration_open"), parse_time("registration_close")
-    return {"event_name":CONFIG["event_name"], "event_start":CONFIG["event_start"], "event_end":CONFIG["event_end"], "registration_open":CONFIG["registration_open"], "registration_close":CONFIG["registration_close"], "registration_open_now":opens <= current <= closes, "timezone":CONFIG.get("timezone"), "max_participants_per_team":CONFIG.get("max_participants_per_team",3)}
+    return {"event_name":CONFIG["event_name"], "event_start":CONFIG["event_start"], "event_end":CONFIG["event_end"], "registration_open":CONFIG["registration_open"], "registration_close":CONFIG["registration_close"], "registration_open_now":opens <= current <= closes, "timezone":CONFIG.get("timezone"), "max_participants_per_team":CONFIG.get("max_participants_per_team",3), "email_test_mode":os.getenv("EMAIL_TEST_MODE","true").lower()=="true"}
 
 @app.post("/api/admin/login")
 def admin_login(payload: dict):
