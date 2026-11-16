@@ -341,5 +341,4 @@ footer:before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;
 }
 @media(max-width:600px){.topbar{padding:0 12px!important}.topbar .logo{height:38px!important}.main-nav .navlink{padding:8px 7px!important;font-size:12px!important}.main-nav .admin-link svg{display:none}}
 
-.rulebook{grid-column:1/-1;margin-top:32px}.rulebook-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}.rulebook iframe{width:100%;height:80vh;min-height:480px;border:1px solid rgba(128,128,128,.3);border-radius:8px;background:#fff}
 .awards table{width:100%;border-collapse:collapse;background:#fff8ea;border:1px solid var(--line);border-radius:12px;overflow:hidden}.awards th,.awards td{padding:14px 18px;text-align:left;border-bottom:1px solid var(--line)}.awards th{font-size:11px;letter-spacing:.14em;color:var(--gold)}.awards td+td,.awards th+th{text-align:right;white-space:nowrap}.awards tfoot td{font-weight:700;color:var(--navy);border-bottom:0}.awards ul{margin:18px 0 0;padding-left:20px;color:var(--muted);line-height:1.7;font-size:15px}
