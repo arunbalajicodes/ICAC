@@ -4,7 +4,7 @@
 - Updated the competition timeline:
   - Registration opens: 10 November 2026
   - Registration closes: 26 November 2026
-  - Preliminary rounds and quarter-finals: 5–7 February 2027
+  - Preliminary rounds and knock-out rounds: 5–7 February 2027
   - Semi-finals and final: 13–14 February 2027
 - Replaced the restrained Apple-inspired palette with a punchier violet, coral, teal and gold palette.
 - Kept the existing React form, country calling-code picker, and API endpoint configuration.
