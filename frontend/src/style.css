@@ -401,3 +401,28 @@ footer:before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;
 @media(max-width:800px){.se-row{grid-template-columns:1fr}}
 .se-file{display:flex;align-items:center;gap:6px;font-size:14px;white-space:nowrap}.se-attach{white-space:nowrap}
 .se-row textarea{resize:vertical}
+/* mobile: single column, scaled-down copy */
+@media(max-width:960px){
+.app-shell .event-section{grid-template-columns:1fr!important;gap:24px!important}
+.app-shell .event-intro{font-size:16px!important}
+.app-shell .intro-copy p,.app-shell .proposition .intro-copy p{font-size:16.5px!important}
+.app-shell .intro-copy .lead{font-size:21px!important}
+.app-shell .event-cards h3{font-size:21px!important}
+.app-shell .event-cards p,.app-shell .event-faq p,.app-shell .update-card p,.app-shell .hl p{font-size:15.5px!important}
+.app-shell .awards td{font-size:16px!important;padding:14px 14px}
+.app-shell .awards ul{font-size:15.5px!important}
+.app-shell .event-timeline small{font-size:15px!important}
+.app-shell .side-copy>p,.app-shell .step b{font-size:16px!important}
+.app-shell .countdown p{font-size:16px!important}
+}
+@media(max-width:960px){.app-shell .event-section>*,.app-shell .awards{min-width:0;max-width:100%}.app-shell .awards table{table-layout:fixed}.app-shell .awards td,.app-shell .awards th{padding:12px 12px;overflow-wrap:anywhere}.app-shell .awards td+td,.app-shell .awards th+th{white-space:normal;width:38%}}
+@media(max-width:960px){.app-shell .awards table{table-layout:auto}.app-shell .awards td{font-size:15px!important}.app-shell .awards td+td,.app-shell .awards th+th{white-space:nowrap;width:auto}.app-shell .awards td:first-child{overflow-wrap:break-word}}
+@media(max-width:960px){
+.app-shell .awards table,.app-shell .awards tbody,.app-shell .awards tfoot{display:block;width:100%}
+.app-shell .awards thead{display:none}
+.app-shell .awards tr{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.app-shell .awards td{padding:0!important;border:0!important;text-align:left;font-size:15.5px!important}
+.app-shell .awards td+td{text-align:right;white-space:nowrap;font-weight:600;color:var(--navy)}
+.app-shell .awards tfoot tr{border-bottom:0}
+}
+@media(max-width:960px){.app-shell .awards td:first-child{min-width:0;flex:1;white-space:normal;overflow-wrap:break-word}.app-shell .awards td+td{flex:none}}
