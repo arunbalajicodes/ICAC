@@ -1,5 +1,5 @@
 from __future__ import annotations
-import json, os, secrets, smtplib, threading, uuid, logging
+import json, os, re, secrets, smtplib, threading, uuid, logging
 from datetime import datetime
 from email.message import EmailMessage
 from pathlib import Path
@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException, Header, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, TypeAdapter, ValidationError
 from openpyxl import Workbook, load_workbook
 from dotenv import load_dotenv
 
@@ -200,3 +200,99 @@ def export_xlsx(admin=__import__("fastapi").Depends(require_admin)):
     with LOCK:
         wb = load_workbook(REG_FILE); buffer = BytesIO(); wb.save(buffer); buffer.seek(0)
     return StreamingResponse(buffer, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition":"attachment; filename=sastra-registrations.xlsx"})
+
+
+# ---- Site content: published documents, announcements, schedule (backend/config) ----
+from fastapi import Depends, Request
+from fastapi.responses import FileResponse
+CONF_DIR = BASE.parent / "config"
+SITE_FILE, FILES_DIR = CONF_DIR / "site.json", CONF_DIR / "files"
+if os.getenv("VERCEL"):  # ponytail: /tmp is ephemeral on Vercel; uploads vanish, use object storage there
+    import shutil
+    CONF_DIR = Path("/tmp/config"); shutil.copytree(BASE.parent / "config", CONF_DIR, dirs_exist_ok=True)
+    SITE_FILE, FILES_DIR = CONF_DIR / "site.json", CONF_DIR / "files"
+FILES_DIR.mkdir(parents=True, exist_ok=True)
+MAX_PDF = 15 * 1024 * 1024
+
+def read_site():
+    with LOCK, open(SITE_FILE, encoding="utf-8") as f: return json.load(f)
+
+def write_site(site):
+    with LOCK:
+        tmp = SITE_FILE.with_suffix(".tmp"); tmp.write_text(json.dumps(site, indent=2, ensure_ascii=False), encoding="utf-8"); tmp.replace(SITE_FILE)
+
+class AnnouncementIn(BaseModel):
+    date: str = Field(max_length=40); title: str = Field(min_length=1, max_length=200); body: str = Field(default="", max_length=2000)
+    file: Optional[str] = Field(default=None, pattern=r"^att-[0-9a-f]{32}\.pdf$")
+class ScheduleIn(BaseModel):
+    date: str = Field(min_length=1, max_length=60); title: str = Field(min_length=1, max_length=200); note: str = Field(default="", max_length=500)
+class FaqIn(BaseModel):
+    q: str = Field(min_length=1, max_length=300); a: str = Field(min_length=1, max_length=3000)
+class ContactIn(BaseModel):
+    name: str = Field(min_length=1, max_length=100); role: str = Field(default="", max_length=100); phone: str = Field(default="", max_length=30)
+class PrizeRow(BaseModel):
+    category: str = Field(min_length=1, max_length=200); amount: str = Field(min_length=1, max_length=60)
+class PrizesIn(BaseModel):
+    total: str = Field(min_length=1, max_length=60); rows: list[PrizeRow]
+SECTIONS = {"announcements": list[AnnouncementIn], "schedule": list[ScheduleIn], "faqs": list[FaqIn], "contacts": list[ContactIn], "prizes": PrizesIn}
+
+@app.get("/api/site")
+def site_content(): return read_site()
+
+@app.get("/api/files/{key}")
+def get_file(key: str):
+    doc = read_site()["documents"].get(key)
+    if not doc or not doc.get("file"): raise HTTPException(404, "Not published")
+    return FileResponse(FILES_DIR / doc["file"], media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{key}.pdf"'})
+
+@app.put("/api/admin/documents/{key}")
+async def upload_document(key: str, request: Request, admin=Depends(require_admin)):
+    site = read_site()
+    if key not in site["documents"]: raise HTTPException(404, "Unknown document")
+    data = await request.body()
+    if not data.startswith(b"%PDF"): raise HTTPException(400, "Only PDF files are accepted")
+    if len(data) > MAX_PDF: raise HTTPException(413, "PDF must be 15 MB or smaller")
+    (FILES_DIR / f"{key}.pdf").write_bytes(data)
+    site["documents"][key].update(file=f"{key}.pdf", updated=now()); write_site(site)
+    log_audit("SITE", admin["email"], "DOCUMENT_PUBLISHED", details=f"{key} ({len(data)//1024} KB)")
+    return site["documents"][key]
+
+@app.delete("/api/admin/documents/{key}")
+def unpublish_document(key: str, admin=Depends(require_admin)):
+    site = read_site()
+    if key not in site["documents"]: raise HTTPException(404, "Unknown document")
+    (FILES_DIR / f"{key}.pdf").unlink(missing_ok=True)
+    site["documents"][key].update(file=None, updated=None); write_site(site)
+    log_audit("SITE", admin["email"], "DOCUMENT_REMOVED", details=key)
+    return site["documents"][key]
+
+def check_pdf(data: bytes):
+    if not data.startswith(b"%PDF"): raise HTTPException(400, "Only PDF files are accepted")
+    if len(data) > MAX_PDF: raise HTTPException(413, "PDF must be 15 MB or smaller")
+
+@app.put("/api/admin/attachments")
+async def upload_attachment(request: Request, admin=Depends(require_admin)):
+    data = await request.body(); check_pdf(data)
+    name = f"att-{uuid.uuid4().hex}.pdf"; (FILES_DIR / name).write_bytes(data)
+    log_audit("SITE", admin["email"], "ATTACHMENT_UPLOADED", details=f"{name} ({len(data)//1024} KB)")
+    return {"file": name}
+
+@app.get("/api/attachments/{name}")
+def get_attachment(name: str):
+    if not re.fullmatch(r"att-[0-9a-f]{32}\.pdf", name) or not (FILES_DIR / name).exists(): raise HTTPException(404, "Not found")
+    return FileResponse(FILES_DIR / name, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{name}"'})
+
+@app.put("/api/admin/content/{section}")
+async def set_content(section: str, request: Request, admin=Depends(require_admin)):
+    model = SECTIONS.get(section)
+    if not model: raise HTTPException(404, "Unknown section")
+    ta = TypeAdapter(model)
+    try: value = ta.dump_python(ta.validate_python(await request.json()))
+    except ValidationError as e: raise HTTPException(422, "; ".join(f"{'.'.join(map(str, x['loc']))}: {x['msg']}" for x in e.errors()[:3]))
+    site = read_site(); site[section] = value; write_site(site)
+    if section == "announcements":  # drop attachments no announcement references any more
+        used = {a["file"] for a in value if a.get("file")}
+        for f in FILES_DIR.glob("att-*.pdf"):
+            if f.name not in used: f.unlink(missing_ok=True)
+    log_audit("SITE", admin["email"], f"{section.upper()}_UPDATED")
+    return value

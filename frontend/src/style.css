@@ -395,3 +395,9 @@ footer:before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;
 .app-shell .brand-text strong{font-size:clamp(14px,1vw,18px)!important}
 .app-shell .logo{height:clamp(44px,3.4vw,58px)!important}
 }
+
+.site-editor{margin-top:24px}.se-docs{display:grid;gap:10px;margin-bottom:8px}.se-doc{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:#fff}.se-doc small{display:block;color:var(--muted);margin-top:4px}.se-actions{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.se-actions .secondary,.se-actions .approve{cursor:pointer;text-decoration:none;padding:9px 14px;font-size:14px}
+.se-row{display:grid;grid-template-columns:var(--cols,1fr);gap:10px;align-items:start;margin:8px 0}.se-row input,.se-row textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;font-size:14px;background:#fff}
+@media(max-width:800px){.se-row{grid-template-columns:1fr}}
+.se-file{display:flex;align-items:center;gap:6px;font-size:14px;white-space:nowrap}.se-attach{white-space:nowrap}
+.se-row textarea{resize:vertical}

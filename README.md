@@ -56,3 +56,11 @@ The starter intentionally does not include Gmail credentials. If `SMTP_USER` or 
 8. If it still fails, inspect the matching request ID in `backend/data/audit.xlsx` for `email_skipped`, `email_failed`, or `email_sent`. The last two indicate whether the SMTP server accepted the message; SMTP acceptance is not a guarantee of inbox placement.
 
 Never commit `.env` or share the App Password. Gmail SMTP uses `smtp.gmail.com`, port `587`, with STARTTLS.
+
+## Site content (documents, announcements, dates)
+Everything that changes after launch lives in `backend/config/`:
+- `site.json`: document slots (rules, proposition, memorial), announcements (each can carry a PDF), important dates, prize money, FAQs and coordinator contacts.
+- `files/`: the published PDFs (`rules.pdf`, `proposition.pdf`, `memorial.pdf`).
+
+Admins manage all of it from the admin portal, under "Publish documents & updates": upload/replace/remove a PDF, add or remove announcements, edit the dates. Changes appear on the public site immediately. The public site reads `GET /api/site` and serves PDFs from `GET /api/files/{key}`.
+Note: on Vercel the filesystem is ephemeral, so uploads there need object storage before real use.
