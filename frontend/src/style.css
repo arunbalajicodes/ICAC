@@ -387,3 +387,11 @@ footer:before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;
 .app-shell .hero h1{font-size:clamp(56px,6.4vw,112px)!important}
 .app-shell .hero-copy{max-width:640px!important}
 }
+/* top nav: larger links that fill the header */
+@media(min-width:1001px){
+.app-shell .topbar{height:88px}
+.app-shell .main-nav{flex:1;justify-content:space-between;margin-left:clamp(24px,5vw,96px)}
+.app-shell .main-nav .navlink{font-size:clamp(14px,.95vw,18px)!important;padding:10px clamp(8px,.8vw,16px)!important;font-weight:600}
+.app-shell .brand-text strong{font-size:clamp(14px,1vw,18px)!important}
+.app-shell .logo{height:clamp(44px,3.4vw,58px)!important}
+}
