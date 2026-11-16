@@ -353,3 +353,32 @@ footer:before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;
 @media(max-width:600px){.app-shell .main-nav .navlink{font-size:12.5px!important}}
 @media(max-width:1350px){.app-shell .secure{display:none}.app-shell .main-nav .navlink{padding:8px 9px!important}}
 @media(max-width:1180px){.app-shell .main-nav .navlink{font-size:13px!important;padding:8px 7px!important}.app-shell .brand-text strong{font-size:13px!important}}
+/* wider canvas + larger body copy */
+:root{--gx:max(clamp(20px,4vw,72px),calc((100vw - 1560px)/2))}
+.app-shell .event-section{grid-template-columns:minmax(300px,.8fr) minmax(0,1.5fr)!important;gap:clamp(48px,6vw,112px)!important}
+.app-shell .event-intro{font-size:18px!important;max-width:620px!important;line-height:1.7!important}
+.app-shell .intro-copy p,.app-shell .proposition .intro-copy p{font-size:19px!important;line-height:1.75!important;max-width:none!important}
+.app-shell .intro-copy .lead{font-size:26px!important}
+.app-shell .event-cards p,.app-shell .event-faq p,.app-shell .update-card p,.app-shell .hl p{font-size:17px!important;line-height:1.7!important}
+.app-shell .event-cards h3{font-size:24px!important}
+.app-shell .event-faq summary{font-size:16px!important}
+.app-shell .event-timeline b{font-size:15px!important}.app-shell .event-timeline strong{font-size:19px!important}.app-shell .event-timeline small{font-size:16px!important}
+.app-shell .awards td,.app-shell .awards th{font-size:18px!important;padding:18px 24px}.app-shell .awards th{font-size:13px!important}
+.app-shell .awards ul{font-size:17px!important;line-height:1.75}
+.app-shell .awards tfoot td{font-size:20px!important}
+.app-shell .coord span{font-size:13px!important}.app-shell .coord a{font-size:17px!important}.app-shell .coord b{font-size:22px!important}
+.app-shell .side-copy>p,.app-shell .step b{font-size:17px!important;max-width:none!important}.app-shell .step small{font-size:15px!important}
+.app-shell .theme-chips span{font-size:15px!important}
+.app-shell .campus-copy p{font-size:17px!important}
+.app-shell .countdown p{font-size:18px!important}
+.app-shell .hero-copy{max-width:600px!important;font-size:20px!important}
+
+/* hero: left copy spans the statue's height, 4-line title */
+@media(min-width:961px){
+.app-shell .hero{grid-template-columns:minmax(0,1fr) minmax(420px,600px)!important;align-items:stretch!important}
+.app-shell .hero-figure{justify-self:end;width:100%;aspect-ratio:auto!important;align-self:stretch!important;grid-row:1/7!important;min-height:640px!important;height:auto!important}
+.app-shell .hero h1{font-size:clamp(52px,5.6vw,92px)!important;line-height:1.02!important;margin:14px 0 24px!important;white-space:nowrap}
+.app-shell .hero h1 em{display:inline!important}
+.app-shell .hero-copy{margin-bottom:28px!important}
+.app-shell .hero-cta-row{margin-bottom:28px!important}
+}
