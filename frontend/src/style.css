@@ -382,3 +382,8 @@ footer:before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;
 .app-shell .hero-copy{margin-bottom:28px!important}
 .app-shell .hero-cta-row{margin-bottom:28px!important}
 }
+@media(min-width:961px){
+.app-shell .hero{grid-template-columns:minmax(0,1fr) minmax(460px,720px)!important;column-gap:clamp(32px,4vw,64px)!important}
+.app-shell .hero h1{font-size:clamp(56px,6.4vw,112px)!important}
+.app-shell .hero-copy{max-width:640px!important}
+}
