@@ -92,6 +92,17 @@ def replace_registration(request_id, updates):
 def log_audit(request_id, actor, action, from_status="", to_status="", details=""):
     append_row(AUDIT_FILE, AUDIT_HEADERS, {"timestamp":now(), "request_id":request_id, "actor":actor, "action":action, "from_status":from_status, "to_status":to_status, "details":details})
 
+def backup_to_sheet(row):
+    # Temporary durable store: POST the row to a Google Apps Script web app that appends to a Sheet.
+    url = os.getenv("SHEET_WEBHOOK_URL", "")
+    if not url: return
+    import urllib.request
+    try:
+        req = urllib.request.Request(url, json.dumps(row).encode(), {"Content-Type": "text/plain"})
+        urllib.request.urlopen(req, timeout=10).read()
+    except Exception:
+        logging.exception("Sheet backup failed for %s", row.get("request_id"))
+
 def send_status_email(request_id, subject, body, user_email=""):
     # Test mode always routes to configured test recipients, never to real registrants.
     test_mode = os.getenv("EMAIL_TEST_MODE", "true").lower() == "true"
@@ -167,6 +178,7 @@ def create_registration(payload: RegistrationIn):
             p = payload.participants[i] if i < len(payload.participants) else None
             row[f"participant{i+1}_name"] = p.name if p else ""; row[f"participant{i+1}_email"] = str(p.email) if p else ""; row[f"participant{i+1}_year"] = p.year if p else ""
         append_row(REG_FILE, REG_HEADERS, row)
+    backup_to_sheet(row)
     log_audit(request_id, str(payload.coach_email), "registration_submitted", "", "REVIEW_PENDING", f"university={payload.university}; country={payload.country}")
     send_status_email(request_id, "Registration received — SASTRA Moot Court", f"Dear {payload.coach_name},\n\nYour team registration for {CONFIG['event_name']} has been received and is pending admin review. We will send another email when a decision is made.", str(payload.coach_email))
     return {"request_id":request_id, "status":"REVIEW_PENDING", "message":"Registration submitted for review."}
