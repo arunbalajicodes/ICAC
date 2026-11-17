@@ -64,6 +64,7 @@ def log_audit(request_id, actor, action, from_status="", to_status="", details="
 # ---- Email wording: edit the text here ----
 SHORT_EVENT = "SASTRA ICAC Moot Court Competition 2027"
 SIGNOFF = "Thanks and Regards,\nICAC Co-ordinators,\nSchool of Law,\nSASTRA Deemed To Be University"
+DEFAULT_CC = "127118023@sastra.ac.in,128087006@sastra.ac.in"  # organisers copied on every mail; override with EMAIL_CC
 QUOTE_ID = "Please quote the Request ID below in any correspondence regarding this registration."
 
 def received_email(coach, university):
@@ -89,11 +90,21 @@ def decision_email(decision, coach, university, note=""):
         "Should you wish to seek clarification, please contact the organising committee using the contact details on the competition website.\n\n"
         "We appreciate your interest and wish you every success in your future endeavours.\n\n" + QUOTE_ID)
 
-def send_status_email(request_id, subject, body, user_email=""):
+def addresses(*lists):
+    """Flatten, trim and de-duplicate (case-insensitive) email addresses, keeping order."""
+    seen, out = set(), []
+    for item in (a.strip() for l in lists for a in ([l] if isinstance(l, str) else l)):
+        if item and item.lower() not in seen: seen.add(item.lower()); out.append(item)
+    return out
+
+def send_status_email(request_id, subject, body, recipients):
+    """recipients = coach + participants. CC (EMAIL_CC) goes to the organisers on every mail."""
     # Test mode always routes to configured test recipients, never to real registrants.
     test_mode = os.getenv("EMAIL_TEST_MODE", "true").lower() == "true"
-    to_addr = os.getenv("TEST_RECIPIENT", "thanosragu2005@gmail.com") if test_mode else (user_email or os.getenv("TEST_RECIPIENT", "thanosragu2005@gmail.com"))
-    cc_addr = os.getenv("TEST_CC", "raghav.kartik2005@gmail.com")
+    to_list = addresses(os.getenv("TEST_RECIPIENT", "thanosragu2005@gmail.com")) if test_mode else addresses(recipients)
+    cc_list = addresses(os.getenv("TEST_CC", "raghav.kartik2005@gmail.com").split(",") if test_mode else os.getenv("EMAIL_CC", DEFAULT_CC).split(","))
+    cc_list = [a for a in cc_list if a.lower() not in {t.lower() for t in to_list}]  # nobody gets the same mail twice
+    to_addr, cc_addr = ", ".join(to_list), ", ".join(cc_list)
     smtp_user, smtp_pass = os.getenv("SMTP_USER", ""), os.getenv("SMTP_APP_PASSWORD", "")
     if not smtp_user or not smtp_pass:
         logging.warning("Email not sent (SMTP not configured). request_id=%s subject=%s", request_id, subject)
@@ -155,7 +166,7 @@ def create_registration(payload: RegistrationIn):
         sb.table("registrations").delete().eq("request_id", request_id).execute()  # no half-saved teams
         raise
     log_audit(request_id, str(payload.coach_email), "registration_submitted", "", "REVIEW_PENDING", f"university={payload.university}; country={payload.country}")
-    send_status_email(request_id, *received_email(payload.coach_name, payload.university.strip()), str(payload.coach_email))
+    send_status_email(request_id, *received_email(payload.coach_name, payload.university.strip()), addresses(str(payload.coach_email), [str(p.email) for p in payload.participants]))
     return {"request_id":request_id, "status":"REVIEW_PENDING", "message":"Registration submitted for review."}
 
 def fetch_registrations(status: str = "ALL"):
@@ -178,7 +189,7 @@ def decide(request_id: str, payload: DecisionIn, admin=Depends(require_admin)):
         exists = sb.table("registrations").select("request_id").eq("request_id", request_id).execute().data
         raise HTTPException(409, "This registration already has a final decision") if exists else HTTPException(404, "Request ID not found")
     log_audit(request_id, admin["email"], "admin_decision", "REVIEW_PENDING", decision, payload.note.strip())
-    send_status_email(request_id, *decision_email(decision, done[0]["coach_name"], done[0]["university"], payload.note.strip()), done[0]["coach_email"])
+    send_status_email(request_id, *decision_email(decision, done[0]["coach_name"], done[0]["university"], payload.note.strip()), addresses(done[0]["coach_email"], [p["email"] for p in sb.table("participants").select("email").eq("request_id", request_id).order("position").execute().data]))
     return {"request_id":request_id, "status":decision}
 
 @app.get("/api/admin/audit/{request_id}")
