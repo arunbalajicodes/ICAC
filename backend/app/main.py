@@ -1,5 +1,5 @@
 from __future__ import annotations
-import json, os, re, secrets, smtplib, string, uuid, logging
+import json, os, re, secrets, smtplib, string, time, uuid, logging
 from datetime import datetime
 from email.message import EmailMessage
 from io import BytesIO
@@ -155,17 +155,40 @@ def send_status_email(request_id, subject, body, recipients):
         log_audit(request_id, "system", "email_failed", details=str(exc)[:500])
         return "failed"
 
-def require_admin(authorization: Optional[str] = Header(default=None)):
-    """Supabase Auth proves who you are (JWT); the profiles table decides if you're an active admin."""
-    if not authorization or not authorization.lower().startswith("bearer "):
-        raise HTTPException(401, "Admin sign-in required")
-    try: user = sb.auth.get_user(authorization.split(" ", 1)[1]).user
-    except Exception: raise HTTPException(401, "Admin session expired; sign in again")
-    if not user: raise HTTPException(401, "Admin session expired; sign in again")
-    rows = sb.table("profiles").select("email,display_name,role,active").eq("id", user.id).limit(1).execute().data
+# Verifying a login costs 1-2 round trips to Supabase, so remember the result briefly (per warm server instance).
+# ponytail: an admin who is deactivated keeps access for up to AUTH_TTL seconds; lower it (or drop the cache) if that matters.
+AUTH_TTL, _auth_cache = 60, {}
+
+def cached(key, load):
+    hit = _auth_cache.get(key)
+    if hit and hit[0] > time.monotonic(): return hit[1]
+    value = load()   # errors (401/403) propagate and are never cached
+    if len(_auth_cache) > 500:
+        for k in [k for k, v in _auth_cache.items() if v[0] <= time.monotonic()]: del _auth_cache[k]
+    _auth_cache[key] = (time.monotonic() + AUTH_TTL, value)
+    return value
+
+def bearer(authorization):
+    if not authorization or not authorization.lower().startswith("bearer "): raise HTTPException(401, "Sign-in required")
+    return authorization.split(" ", 1)[1]
+
+def verified_user_id(token):
+    """Supabase Auth proves who you are (a signed, expiring JWT)."""
+    try: user = sb.auth.get_user(token).user
+    except Exception: raise HTTPException(401, "Session expired; sign in again")
+    if not user: raise HTTPException(401, "Session expired; sign in again")
+    return user.id
+
+def load_admin(token):
+    rows = sb.table("profiles").select("email,display_name,role,active").eq("id", verified_user_id(token)).limit(1).execute().data
     if not rows or rows[0]["role"] != "admin" or not rows[0]["active"]:
         raise HTTPException(403, "This account is not an active admin")
     return {"email": rows[0]["email"], "display_name": rows[0]["display_name"] or rows[0]["email"]}
+
+def require_admin(authorization: Optional[str] = Header(default=None)):
+    """The profiles table decides if you're an active admin."""
+    token = bearer(authorization)
+    return cached(("admin", token), lambda: load_admin(token))
 
 @app.get("/api/health")
 def health(): return {"ok": True, "event": CONFIG["event_name"]}
@@ -472,11 +495,9 @@ SLOT_KIND = {1: "pdf", 2: "pdf", 3: "doc", 4: "doc"}   # 2 PDFs + 2 Word documen
 DOC_TYPES = {".docx": ("application/vnd.openxmlformats-officedocument.wordprocessingml.document", b"PK\x03\x04"), ".doc": ("application/msword", b"\xd0\xcf\x11\xe0")}
 
 def require_team(authorization: Optional[str] = Header(default=None)):
-    if not authorization or not authorization.lower().startswith("bearer "): raise HTTPException(401, "Sign-in required")
-    try: user = sb.auth.get_user(authorization.split(" ", 1)[1]).user
-    except Exception: raise HTTPException(401, "Session expired; sign in again")
-    if not user: raise HTTPException(401, "Session expired; sign in again")
-    rows = sb.table("teams").select("*").eq("user_id", user.id).limit(1).execute().data
+    token = bearer(authorization)
+    uid = cached(("user", token), lambda: verified_user_id(token))   # only the identity is cached; the team row (edit counter, password flag) is always read fresh
+    rows = sb.table("teams").select("*").eq("user_id", uid).limit(1).execute().data
     if not rows: raise HTTPException(403, "This account is not a team account")
     return rows[0]
 

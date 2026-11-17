@@ -1,5 +1,5 @@
-import React, {useEffect, useState} from 'react';
-import {Download, LogOut, Search, Users, Clock3, CheckCircle2, XCircle, ChevronRight, FileClock, KeyRound, Send, ArrowLeft} from 'lucide-react';
+import React, {useEffect, useRef, useState} from 'react';
+import {Download, LogOut, Search, Users, Clock3, CheckCircle2, XCircle, ChevronRight, FileClock, KeyRound, Send, ArrowLeft, RefreshCw} from 'lucide-react';
 
 const when = s => s ? new Date(s).toLocaleString('en-IN', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '—';
 const day = s => s ? new Date(s).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) : '—';
@@ -20,7 +20,7 @@ const Stat = ({label, value, icon}) => <div className="stat-card"><span classNam
 
 // Admin portal: Registrations (primary), Team management, Site content (secondary).
 export function Admin({token, admin, API, setError, onSignOut, siteTab}) {
-  const [tab, setTab] = useState('registrations'), [open, setOpen] = useState(null);
+  const [tab, setTab] = useState('registrations'), [open, setOpen] = useState(null), [stamp, setStamp] = useState({registrations:0, teams:0});
   const call = async (path, opt = {}) => {
     const r = await fetch(API + path, {...opt, headers:{Authorization:`Bearer ${token}`, ...(typeof opt.body === 'string' ? {'Content-Type':'application/json'} : {}), ...(opt.headers || {})}});
     const d = await r.json().catch(() => ({detail:'Unexpected server response'}));
@@ -36,25 +36,28 @@ export function Admin({token, admin, API, setError, onSignOut, siteTab}) {
     } catch (e) { setError(e.message); }
   };
   const goTeam = id => { setOpen(id); setTab('teams'); };
+  // Tabs stay mounted (hidden) so their data is still there when you come back; returning bumps `stamp`, which refreshes it quietly.
+  const show = k => { setTab(k); if (k === 'teams') setOpen(null); setStamp(st => ({...st, [k]: (st[k] || 0) + 1})); };
   const tabs = [['registrations', 'Registrations'], ['teams', 'Team management'], ['site', 'Site content']];
   return <section className="admin-panel">
     <div className="admin-title"><div><div className="section-kicker">ADMINISTRATION</div><h2>Admin portal</h2><p className="muted">Welcome, {admin?.display_name || 'Admin'}.</p></div>
       <div className="admin-actions"><button className="secondary" onClick={onSignOut}><LogOut size={16}/> Sign out</button></div></div>
-    <div className="admin-tabs" role="tablist">{tabs.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => { setTab(k); if (k === 'teams') setOpen(null); }}>{l}</button>)}</div>
-    {tab === 'registrations' && <Registrations call={call} download={download} setError={setError} goTeam={goTeam}/>}
-    {tab === 'teams' && <Teams call={call} setError={setError} open={open} setOpen={setOpen}/>}
-    {tab === 'site' && siteTab}
+    <div className="admin-tabs" role="tablist">{tabs.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => show(k)}>{l}</button>)}</div>
+    <div hidden={tab !== 'registrations'}><Registrations call={call} download={download} setError={setError} goTeam={goTeam} stamp={stamp.registrations}/></div>
+    <div hidden={tab !== 'teams'}><Teams call={call} setError={setError} open={open} setOpen={setOpen} stamp={stamp.teams}/></div>
+    <div hidden={tab !== 'site'}>{siteTab}</div>
   </section>;
 }
 
-function Registrations({call, download, setError, goTeam}) {
-  const [items, setItems] = useState([]), [filter, setFilter] = useState('ALL'), [query, setQuery] = useState(''), [sel, setSel] = useState(null), [audit, setAudit] = useState(null),
+function Registrations({call, download, setError, goTeam, stamp}) {
+  const [items, setItems] = useState(null), [filter, setFilter] = useState('ALL'), [query, setQuery] = useState(''), [sel, setSel] = useState(null), [audit, setAudit] = useState(null),
     [note, setNote] = useState(''), [code, setCode] = useState(''), [busy, setBusy] = useState(false), [notice, setNotice] = useState('');
   const load = async () => { try { setItems((await call('/api/admin/registrations')).items); } catch (e) { setError(e.message); } };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [stamp]);   // first mount and every return to this tab; old data stays on screen meanwhile
   useEffect(() => { if (sel) document.getElementById('request-details')?.scrollIntoView({behavior:'smooth', block:'start'}); }, [sel]);
-  const filtered = items.filter(x => (filter === 'ALL' || x.status === filter) && [x.university, x.coach_name, x.request_id].join(' ').toLowerCase().includes(query.toLowerCase()));
-  const count = s => items.filter(x => x.status === s).length;
+  const list = items || [];
+  const filtered = list.filter(x => (filter === 'ALL' || x.status === filter) && [x.university, x.coach_name, x.request_id].join(' ').toLowerCase().includes(query.toLowerCase()));
+  const count = s => list.filter(x => x.status === s).length;
   async function decide(decision) {
     setBusy(true); setError(''); setNotice('');
     try {
@@ -72,16 +75,18 @@ function Registrations({call, download, setError, goTeam}) {
       <button className="secondary" onClick={() => download('/api/admin/export.xlsx', 'sastra-registrations.xlsx')}><Download size={16}/> Registrations (Excel)</button>
     </div>
     {notice && <div className="notice"><CheckCircle2 size={18}/><span>{notice}</span><button onClick={() => setNotice('')} aria-label="Dismiss">×</button></div>}
-    <div className="stats-grid"><Stat label="Registrations" value={items.length} icon={<Users/>}/><Stat label="Pending review" value={count('REVIEW_PENDING')} icon={<Clock3/>}/><Stat label="Selected" value={count('APPROVED')} icon={<CheckCircle2/>}/><Stat label="Rejected" value={count('REJECTED')} icon={<XCircle/>}/></div>
+    <div className="stats-grid"><Stat label="Registrations" value={list.length} icon={<Users/>}/><Stat label="Pending review" value={count('REVIEW_PENDING')} icon={<Clock3/>}/><Stat label="Selected" value={count('APPROVED')} icon={<CheckCircle2/>}/><Stat label="Rejected" value={count('REJECTED')} icon={<XCircle/>}/></div>
     <div className="table-card">
       <div className="table-toolbar">
         <div className="searchbox"><Search size={17}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search universities, contacts, request IDs"/></div>
         <select value={filter} onChange={e => setFilter(e.target.value)}><option value="ALL">All statuses</option><option value="REVIEW_PENDING">Pending review</option><option value="APPROVED">Selected</option><option value="REJECTED">Rejected</option></select>
+        <button className="secondary" onClick={load}><RefreshCw size={15}/> Refresh</button>
       </div>
       <div className="table-scroll"><table><thead><tr><th>UNIVERSITY</th><th>REQUEST ID</th><th>SUBMITTED</th><th>STATUS</th><th>ACTIONS</th></tr></thead><tbody>
         {filtered.map(r => <tr key={r.request_id}><td><b>{r.university}</b><small>{r.country || ''}</small></td><td className="mono">{r.request_id}</td><td>{day(r.created_at)}</td><td><Status status={r.status}/></td>
           <td><button className="text-action" onClick={() => show(r)}>{r.status === 'REVIEW_PENDING' ? 'Review' : 'Details & audit'} <ChevronRight size={14}/></button></td></tr>)}
-        {filtered.length === 0 && <tr><td colSpan="5" className="empty">No registrations found for this filter.</td></tr>}
+        {items === null && <tr><td colSpan="5" className="empty">Loading…</td></tr>}
+        {items !== null && filtered.length === 0 && <tr><td colSpan="5" className="empty">No registrations found for this filter.</td></tr>}
       </tbody></table></div>
     </div>
     {sel && <div className="detail-card" id="request-details">
@@ -108,13 +113,14 @@ function Registrations({call, download, setError, goTeam}) {
   </>;
 }
 
-function Teams({call, setError, open, setOpen}) {
-  const [items, setItems] = useState(null), [q, setQ] = useState('');
-  useEffect(() => { if (!open) call('/api/admin/teams').then(d => setItems(d.items)).catch(e => setError(e.message)); }, [open]);
-  if (open) return <TeamPage id={open} back={() => setOpen(null)} call={call} setError={setError}/>;
+function Teams({call, setError, open, setOpen, stamp}) {
+  const [items, setItems] = useState(null), [q, setQ] = useState(''), cache = useRef({});   // cache = last-seen team pages, shown instantly while a fresh copy loads
+  const load = () => call('/api/admin/teams').then(d => setItems(d.items)).catch(e => setError(e.message));
+  useEffect(() => { if (!open) load(); }, [open, stamp]);
+  if (open) return <TeamPage key={open} id={open} initial={cache.current[open]} onLoad={d => { cache.current[open] = d; }} back={() => setOpen(null)} call={call} setError={setError}/>;
   const rows = (items || []).filter(t => [t.university, t.team_code, t.request_id, t.coach_name].join(' ').toLowerCase().includes(q.toLowerCase()));
   return <div className="table-card">
-    <div className="table-toolbar"><div className="searchbox"><Search size={17}/><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search selected teams by university, team code or request ID"/></div></div>
+    <div className="table-toolbar"><div className="searchbox"><Search size={17}/><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search selected teams by university, team code or request ID"/></div><button className="secondary" onClick={load}><RefreshCw size={15}/> Refresh</button></div>
     <div className="table-scroll"><table><thead><tr><th>TEAM CODE</th><th>UNIVERSITY</th><th>REQUEST ID</th><th>QUESTIONS</th><th>MEMORIAL FILES</th><th>ROUND STATUS</th><th></th></tr></thead><tbody>
       {rows.map(t => <tr key={t.request_id}><td><b>{t.team_code || '—'}</b></td><td><b>{t.university}</b><small>{t.country}</small></td><td className="mono">{t.request_id}</td><td>{t.questions}</td><td>{t.files} / 4</td><td><RoundPill value={t.round_status}/></td>
         <td><button className="text-action" onClick={() => setOpen(t.request_id)}>Manage <ChevronRight size={14}/></button></td></tr>)}
@@ -126,9 +132,9 @@ function Teams({call, setError, open, setOpen}) {
 
 const NAV = [['details', 'Team details'], ['questions', 'Clarification questions'], ['memorial', 'Memorial submission'], ['status', 'Status'], ['message', 'Send message']];
 
-function TeamPage({id, back, call, setError}) {
-  const [t, setT] = useState(null), [sec, setSec] = useState('details');
-  const reload = () => call(`/api/admin/teams/${id}`).then(setT).catch(e => setError(e.message));
+function TeamPage({id, initial, onLoad, back, call, setError}) {
+  const [t, setT] = useState(initial || null), [sec, setSec] = useState('details');
+  const reload = () => call(`/api/admin/teams/${id}`).then(d => { setT(d); onLoad(d); }).catch(e => setError(e.message));
   useEffect(() => { reload(); }, [id]);
   if (!t) return <p className="muted">Loading team…</p>;
   const props = {t, call, reload, setError};
