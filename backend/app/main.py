@@ -61,6 +61,34 @@ def flatten(reg: dict) -> dict:
 def log_audit(request_id, actor, action, from_status="", to_status="", details=""):
     sb.table("audit_log").insert({"request_id": request_id, "actor": actor, "action": action, "from_status": from_status or None, "to_status": to_status or None, "details": details or None}).execute()
 
+# ---- Email wording: edit the text here ----
+SHORT_EVENT = "SASTRA ICAC Moot Court Competition 2027"
+SIGNOFF = "Thanks and Regards,\nICAC Co-ordinators,\nSchool of Law,\nSASTRA Deemed To Be University"
+QUOTE_ID = "Please quote the Request ID below in any correspondence regarding this registration."
+
+def received_email(coach, university):
+    return (f"Registration Received — {SHORT_EVENT}",
+        f"Dear {coach},\n\n"
+        f"Thank you for registering {university} for the {CONFIG['event_name']}, hosted by the School of Law, SASTRA Deemed To Be University.\n\n"
+        "We confirm that your team's registration has been received. It is now under review by the organising committee, and we will write to you again as soon as a decision has been made.\n\n"
+        + QUOTE_ID)
+
+def decision_email(decision, coach, university, note=""):
+    extra = f"\n\nNote from the organising committee: {note}" if note else ""
+    if decision == "APPROVED":
+        return (f"Registration Approved — {SHORT_EVENT}",
+            f"Dear {coach},\n\n"
+            f"We are pleased to inform you that the registration of {university} for the {CONFIG['event_name']} has been approved. Congratulations, and welcome to the competition."
+            + extra + "\n\n"
+            "The competition rulebook and further resources are available on the competition website. All official communication, including clarifications and updates, will be sent to this email address.\n\n"
+            "We look forward to your team's participation.\n\n" + QUOTE_ID)
+    return (f"Registration Decision — {SHORT_EVENT}",
+        f"Dear {coach},\n\n"
+        f"Thank you for your interest in the {CONFIG['event_name']}. After careful review, we regret to inform you that the registration of {university} could not be approved on this occasion."
+        + extra + "\n\n"
+        "Should you wish to seek clarification, please contact the organising committee using the contact details on the competition website.\n\n"
+        "We appreciate your interest and wish you every success in your future endeavours.\n\n" + QUOTE_ID)
+
 def send_status_email(request_id, subject, body, user_email=""):
     # Test mode always routes to configured test recipients, never to real registrants.
     test_mode = os.getenv("EMAIL_TEST_MODE", "true").lower() == "true"
@@ -73,7 +101,7 @@ def send_status_email(request_id, subject, body, user_email=""):
         return
     msg = EmailMessage(); msg["Subject"] = subject; msg["From"] = smtp_user; msg["To"] = to_addr
     if cc_addr: msg["Cc"] = cc_addr
-    msg.set_content(body + f"\n\nRequest ID: {request_id}\n")
+    msg.set_content(f"{body}\n\nRequest ID: {request_id}\n\n{SIGNOFF}\n")
     try:
         with smtplib.SMTP(os.getenv("SMTP_HOST", "smtp.gmail.com"), int(os.getenv("SMTP_PORT", "587")), timeout=15) as server:
             server.starttls(); server.login(smtp_user, smtp_pass); server.send_message(msg)
@@ -127,7 +155,7 @@ def create_registration(payload: RegistrationIn):
         sb.table("registrations").delete().eq("request_id", request_id).execute()  # no half-saved teams
         raise
     log_audit(request_id, str(payload.coach_email), "registration_submitted", "", "REVIEW_PENDING", f"university={payload.university}; country={payload.country}")
-    send_status_email(request_id, "Registration received — SASTRA Moot Court", f"Dear {payload.coach_name},\n\nYour team registration for {CONFIG['event_name']} has been received and is pending admin review. We will send another email when a decision is made.", str(payload.coach_email))
+    send_status_email(request_id, *received_email(payload.coach_name, payload.university.strip()), str(payload.coach_email))
     return {"request_id":request_id, "status":"REVIEW_PENDING", "message":"Registration submitted for review."}
 
 def fetch_registrations(status: str = "ALL"):
@@ -150,7 +178,7 @@ def decide(request_id: str, payload: DecisionIn, admin=Depends(require_admin)):
         exists = sb.table("registrations").select("request_id").eq("request_id", request_id).execute().data
         raise HTTPException(409, "This registration already has a final decision") if exists else HTTPException(404, "Request ID not found")
     log_audit(request_id, admin["email"], "admin_decision", "REVIEW_PENDING", decision, payload.note.strip())
-    send_status_email(request_id, f"Registration {decision.lower()} — SASTRA Moot Court", f"Your team registration for {CONFIG['event_name']} has been {decision.lower()}.\n\nAdmin note: {payload.note.strip() or 'No additional note provided.'}", done[0]["coach_email"])
+    send_status_email(request_id, *decision_email(decision, done[0]["coach_name"], done[0]["university"], payload.note.strip()), done[0]["coach_email"])
     return {"request_id":request_id, "status":decision}
 
 @app.get("/api/admin/audit/{request_id}")
