@@ -5,7 +5,7 @@ from email.message import EmailMessage
 from io import BytesIO
 from pathlib import Path
 from zoneinfo import ZoneInfo
-from typing import Optional
+from typing import Literal, Optional
 from fastapi import Depends, FastAPI, HTTPException, Header, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, StreamingResponse
@@ -32,6 +32,7 @@ class Participant(BaseModel):
     name: str = Field(min_length=2, max_length=120)
     email: EmailStr
     year: str = Field(min_length=1, max_length=40)
+    role: Literal["Speaker 1", "Speaker 2", "Researcher"]
 
 class RegistrationIn(BaseModel):
     university: str = Field(min_length=2, max_length=180)
@@ -54,7 +55,7 @@ def flatten(reg: dict) -> dict:
     ps = {p["position"]: p for p in reg.pop("participants", [])}
     for i in (1, 2, 3):
         p = ps.get(i, {})
-        reg[f"participant{i}_name"], reg[f"participant{i}_email"], reg[f"participant{i}_year"] = p.get("name"), p.get("email"), p.get("year")
+        reg[f"participant{i}_name"], reg[f"participant{i}_email"], reg[f"participant{i}_year"], reg[f"participant{i}_role"] = p.get("name"), p.get("email"), p.get("year"), p.get("role")
     return reg
 
 def log_audit(request_id, actor, action, from_status="", to_status="", details=""):
@@ -112,6 +113,8 @@ def create_registration(payload: RegistrationIn):
         raise HTTPException(403, "Registration is currently closed.")
     if len(payload.participants) > int(CONFIG.get("max_participants_per_team", 3)):
         raise HTTPException(422, "A team may have at most three participants.")
+    if len({p.role for p in payload.participants}) != len(payload.participants):
+        raise HTTPException(422, "Each role (Speaker 1, Speaker 2, Researcher) can be assigned to only one participant.")
     request_id = "SASTRA-" + uuid.uuid4().hex[:10].upper()
     try:  # the unique index on lower(university) rejects duplicates, even under concurrent submits
         sb.table("registrations").insert({"request_id": request_id, "university": payload.university.strip(), "country": payload.country.strip(), "coach_name": payload.coach_name.strip(), "coach_email": str(payload.coach_email), "coach_phone": payload.coach_phone.strip()}).execute()
@@ -119,7 +122,7 @@ def create_registration(payload: RegistrationIn):
         if e.code == "23505": raise HTTPException(409, "This university already has a team registration.")
         raise
     try:
-        sb.table("participants").insert([{"request_id": request_id, "position": i + 1, "name": p.name, "email": str(p.email), "year": p.year} for i, p in enumerate(payload.participants)]).execute()
+        sb.table("participants").insert([{"request_id": request_id, "position": i + 1, "name": p.name, "email": str(p.email), "year": p.year, "role": p.role} for i, p in enumerate(payload.participants)]).execute()
     except Exception:
         sb.table("registrations").delete().eq("request_id", request_id).execute()  # no half-saved teams
         raise
@@ -157,7 +160,7 @@ def audit_trail(request_id: str, admin=Depends(require_admin)):
 
 @app.get("/api/admin/export.xlsx")
 def export_xlsx(admin=Depends(require_admin)):
-    cols = ["request_id", "created_at", "status", "university", "country", "coach_name", "coach_email", "coach_phone"] + [f"participant{i}_{f}" for i in (1, 2, 3) for f in ("name", "email", "year")] + ["decision_at", "decision_by", "decision_note"]
+    cols = ["request_id", "created_at", "status", "university", "country", "coach_name", "coach_email", "coach_phone"] + [f"participant{i}_{f}" for i in (1, 2, 3) for f in ("name", "email", "year", "role")] + ["decision_at", "decision_by", "decision_note"]
     wb = Workbook(); ws = wb.active; ws.append(cols)
     for r in fetch_registrations(): ws.append([r.get(c) for c in cols])
     buffer = BytesIO(); wb.save(buffer); buffer.seek(0)

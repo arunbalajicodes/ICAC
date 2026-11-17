@@ -28,6 +28,9 @@ create table if not exists participants (                -- 1 to 3 per team
   year        text not null,
   unique (request_id, position)
 );
+-- role added later; nullable so rows created before it existed stay valid
+alter table participants add column if not exists role text check (role in ('Speaker 1','Speaker 2','Researcher'));
+create unique index if not exists participants_role_uq on participants (request_id, role);  -- each role once per team
 
 create table if not exists audit_log (                   -- append-only; request_id also holds 'SITE'
   id          bigint generated always as identity primary key,
