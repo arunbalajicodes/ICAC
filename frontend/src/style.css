@@ -429,7 +429,8 @@ footer:before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;
 
 /* mobile navigation + spacing */
 .menu-btn{display:none;background:none;border:0;color:var(--navy);padding:8px;cursor:pointer}
-@media(max-width:900px){
+@media(max-width:1260px){.app-shell .main-nav.open{top:96px}}
+@media(max-width:1260px){
 .menu-btn{display:grid;place-items:center;margin-left:4px}
 .app-shell .topbar{gap:8px}
 .app-shell .main-nav:not(.open) .navlink:not([href="#registration"]){display:none!important}
