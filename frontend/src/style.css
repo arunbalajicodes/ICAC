@@ -457,3 +457,36 @@ footer:before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;
 .app-shell .footer-brand img{height:48px;width:auto}
 .app-shell footer nav{display:flex;flex-wrap:wrap;gap:12px 22px}
 }
+
+/* ---- admin portal: tabs, downloads, team management ---- */
+.admin-tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:26px 0 0;overflow-x:auto}
+.admin-tabs button{border:0;background:none;padding:13px 18px;font-size:14px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap;cursor:pointer}
+.admin-tabs button:hover{color:var(--ink)}
+.admin-tabs button.on{color:var(--navy);border-bottom-color:var(--navy)}
+.dl-bar{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0 0}
+.notice{display:flex;align-items:flex-start;gap:10px;margin:18px 0 0;padding:13px 16px;border-radius:12px;background:#e7f7ee;border:1px solid #bfe6d0;color:#145c3b;font-size:13px;line-height:1.55}
+.notice svg{flex:none;margin-top:2px}.notice span{flex:1}
+.notice button{border:0;background:none;font-size:20px;color:inherit;cursor:pointer}
+.decision-stack{flex-wrap:wrap}
+.decision-stack input{flex:1 1 220px}
+.decision-row select,.inline-edit input{height:44px;border:1px solid var(--line);border-radius:10px;padding:0 12px;background:#fff;font-size:13px;min-width:0}
+.decision-row .muted{align-self:center}
+.team-page .back{margin:22px 0 12px}
+.team-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:20px}
+.team-head h3{font-size:26px;letter-spacing:-.03em;margin:8px 0 6px}
+.team-layout{display:grid;grid-template-columns:230px minmax(0,1fr);gap:22px;align-items:start}
+.team-nav{display:grid;gap:4px;position:sticky;top:96px}
+.team-nav button{text-align:left;border:0;background:none;padding:12px 14px;border-radius:10px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer}
+.team-nav button:hover{background:rgba(0,0,0,.05);color:var(--ink)}
+.team-nav button.on{background:var(--navy);color:#fff}
+.team-body{border:1px solid var(--line);background:#fff;border-radius:16px;padding:24px;min-width:0}
+.team-body h4{margin:0 0 8px;font-size:19px;letter-spacing:-.02em}
+.team-body .detail-grid{padding-top:10px}
+.inline-edit{display:flex;gap:8px;align-items:center}
+.inline-edit input{flex:1;max-width:220px}
+.admin-textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:12px;font:inherit;font-size:13px;line-height:1.6;resize:vertical;background:#fff}
+.qlist{margin:14px 0 0;padding-left:22px;display:grid;gap:14px;font-size:14px;line-height:1.6}
+.qlist small{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+.empty-note{margin:14px 0 0;padding:22px;border:1px dashed var(--line);border-radius:12px;text-align:center;color:var(--muted);font-size:13px}
+.msg-text{white-space:pre-wrap}
+@media(max-width:800px){.team-layout{grid-template-columns:1fr}.team-nav{display:flex;overflow-x:auto;position:static;gap:6px}.team-nav button{white-space:nowrap}.team-body{padding:18px}.team-head{flex-direction:column}}

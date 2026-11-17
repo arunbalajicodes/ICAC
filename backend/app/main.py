@@ -1,5 +1,5 @@
 from __future__ import annotations
-import json, os, re, smtplib, uuid, logging
+import json, os, re, secrets, smtplib, string, uuid, logging
 from datetime import datetime
 from email.message import EmailMessage
 from io import BytesIO
@@ -45,6 +45,14 @@ class RegistrationIn(BaseModel):
 class DecisionIn(BaseModel):
     decision: str
     note: str = Field(default="", max_length=1000)
+    team_code: str = Field(default="", max_length=40)   # optional label, only used when selecting
+
+class TeamPatch(BaseModel):
+    team_code: Optional[str] = Field(default=None, max_length=40)    # "" clears it
+    round_status: Optional[Literal["PENDING", "SELECTED", "REJECTED"]] = None
+
+class MessageIn(BaseModel):
+    body: str = Field(min_length=1, max_length=3000)
 
 
 def now(): return datetime.now(TZ).isoformat(timespec="seconds")
@@ -74,21 +82,38 @@ def received_email(coach, university):
         "We confirm that your team's registration has been received. It is now under review by the organising committee, and we will write to you again as soon as a decision has been made.\n\n"
         + QUOTE_ID)
 
-def decision_email(decision, coach, university, note=""):
+def rejection_email(coach, university, note=""):
     extra = f"\n\nNote from the organising committee: {note}" if note else ""
-    if decision == "APPROVED":
-        return (f"Registration Approved — {SHORT_EVENT}",
-            f"Dear {coach},\n\n"
-            f"We are pleased to inform you that the registration of {university} for the {CONFIG['event_name']} has been approved. Congratulations, and welcome to the competition."
-            + extra + "\n\n"
-            "The competition rulebook and further resources are available on the competition website. All official communication, including clarifications and updates, will be sent to this email address.\n\n"
-            "We look forward to your team's participation.\n\n" + QUOTE_ID)
     return (f"Registration Decision — {SHORT_EVENT}",
         f"Dear {coach},\n\n"
         f"Thank you for your interest in the {CONFIG['event_name']}. After careful review, we regret to inform you that the registration of {university} could not be approved on this occasion."
         + extra + "\n\n"
         "Should you wish to seek clarification, please contact the organising committee using the contact details on the competition website.\n\n"
         "We appreciate your interest and wish you every success in your future endeavours.\n\n" + QUOTE_ID)
+
+def selection_email(coach, university, request_id, password, team_code, note=""):
+    extra = f"\n\nNote from the organising committee: {note}" if note else ""
+    code_line = f"\n  Team code: {team_code}" if team_code else ""
+    return (f"Team Selected — {SHORT_EVENT}",
+        f"Dear {coach},\n\n"
+        f"We are pleased to inform you that {university} has been selected to participate in the {CONFIG['event_name']}. Congratulations, and welcome to the competition."
+        + extra + "\n\n"
+        "Your team's login details for the Participant Portal are given below:\n\n"
+        f"  User ID: {request_id}\n  Temporary password: {password}{code_line}\n\n"
+        "To sign in, please visit the competition website and click \"Login\" to reach the Participant Portal. "
+        "For your security, kindly change this temporary password immediately after your first login, and do not share it outside your team.\n\n"
+        "All official communication, including clarifications and updates, will be sent to this email address.\n\n"
+        "We look forward to your team's participation.\n\n" + QUOTE_ID)
+
+def password_reset_email(coach, request_id, password):
+    return (f"Participant Portal — New Temporary Password — {SHORT_EVENT}",
+        f"Dear {coach},\n\n"
+        "As requested, a new temporary password has been issued for your team's Participant Portal account. Any previous password no longer works.\n\n"
+        f"  User ID: {request_id}\n  Temporary password: {password}\n\n"
+        "Please sign in through the \"Login\" link on the competition website and change this password immediately. Kindly do not share it outside your team.\n\n" + QUOTE_ID)
+
+def message_email(coach, text):
+    return (f"Message from the Organising Committee — {SHORT_EVENT}", f"Dear {coach},\n\n{text}")
 
 def addresses(*lists):
     """Flatten, trim and de-duplicate (case-insensitive) email addresses, keeping order."""
@@ -109,7 +134,7 @@ def send_status_email(request_id, subject, body, recipients):
     if not smtp_user or not smtp_pass:
         logging.warning("Email not sent (SMTP not configured). request_id=%s subject=%s", request_id, subject)
         log_audit(request_id, "system", "email_skipped", details="SMTP credentials not configured")
-        return
+        return "skipped"
     msg = EmailMessage(); msg["Subject"] = subject; msg["From"] = smtp_user; msg["To"] = to_addr
     if cc_addr: msg["Cc"] = cc_addr
     msg.set_content(f"{body}\n\nRequest ID: {request_id}\n\n{SIGNOFF}\n")
@@ -117,9 +142,11 @@ def send_status_email(request_id, subject, body, recipients):
         with smtplib.SMTP(os.getenv("SMTP_HOST", "smtp.gmail.com"), int(os.getenv("SMTP_PORT", "587")), timeout=15) as server:
             server.starttls(); server.login(smtp_user, smtp_pass); server.send_message(msg)
         log_audit(request_id, "system", "email_sent", details=f"to={to_addr}; cc={cc_addr}; subject={subject}")
+        return "sent"
     except Exception as exc:
         logging.exception("SMTP failure for %s", request_id)
         log_audit(request_id, "system", "email_failed", details=str(exc)[:500])
+        return "failed"
 
 def require_admin(authorization: Optional[str] = Header(default=None)):
     """Supabase Auth proves who you are (JWT); the profiles table decides if you're an active admin."""
@@ -179,31 +206,156 @@ def list_registrations(status: str = Query(default="ALL"), admin=Depends(require
     rows = fetch_registrations(status)
     return {"items":rows, "total":len(rows)}
 
+LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz"  # no I, O, l, o: easy to misread in an email
+TEAM_EMAIL_DOMAIN = os.getenv("TEAM_EMAIL_DOMAIN", "teams.icac.invalid")
+
+def team_email(request_id):
+    """Hidden Supabase Auth identifier. Teams sign in with their Request ID; the portal adds this suffix."""
+    return f"{request_id.lower()}@{TEAM_EMAIL_DOMAIN}"
+
+def new_password():
+    """10 characters: 4 letters + 6 digits, shuffled."""
+    chars = [secrets.choice(LETTERS) for _ in range(4)] + [secrets.choice(string.digits) for _ in range(6)]
+    secrets.SystemRandom().shuffle(chars)
+    return "".join(chars)
+
+def team_recipients(request_id, coach_email):
+    parts = sb.table("participants").select("email").eq("request_id", request_id).order("position").execute().data
+    return addresses(coach_email, [p["email"] for p in parts])
+
+def code_taken(code, own_id=None):
+    rows = sb.table("teams").select("request_id,team_code").not_.is_("team_code", "null").execute().data
+    return any(r["team_code"].lower() == code.lower() and r["request_id"] != own_id for r in rows)
+
+def one(x):
+    """PostgREST returns a to-one embed as an object (or null) and a to-many embed as a list."""
+    return (x[0] if x else {}) if isinstance(x, list) else (x or {})
+
 @app.post("/api/admin/registrations/{request_id}/decision")
 def decide(request_id: str, payload: DecisionIn, admin=Depends(require_admin)):
     decision = payload.decision.upper()
     if decision not in ("APPROVED", "REJECTED"): raise HTTPException(422, "Decision must be APPROVED or REJECTED")
+    note, code = payload.note.strip(), payload.team_code.strip() or None
+    if decision == "APPROVED" and code and code_taken(code): raise HTTPException(409, f"Team code '{code}' is already used by another team.")
     # Conditional update = atomic: two admins clicking at once can't both decide.
-    done = sb.table("registrations").update({"status":decision, "decision_at":now(), "decision_by":admin["email"], "decision_note":payload.note.strip()}).eq("request_id", request_id).eq("status", "REVIEW_PENDING").execute().data
+    done = sb.table("registrations").update({"status":decision, "decision_at":now(), "decision_by":admin["email"], "decision_note":note}).eq("request_id", request_id).eq("status", "REVIEW_PENDING").execute().data
     if not done:
         exists = sb.table("registrations").select("request_id").eq("request_id", request_id).execute().data
         raise HTTPException(409, "This registration already has a final decision") if exists else HTTPException(404, "Request ID not found")
-    log_audit(request_id, admin["email"], "admin_decision", "REVIEW_PENDING", decision, payload.note.strip())
-    send_status_email(request_id, *decision_email(decision, done[0]["coach_name"], done[0]["university"], payload.note.strip()), addresses(done[0]["coach_email"], [p["email"] for p in sb.table("participants").select("email").eq("request_id", request_id).order("position").execute().data]))
-    return {"request_id":request_id, "status":decision}
+    coach, university = done[0]["coach_name"], done[0]["university"]
+    recipients = team_recipients(request_id, done[0]["coach_email"])
+    if decision == "REJECTED":
+        log_audit(request_id, admin["email"], "admin_decision", "REVIEW_PENDING", decision, note)
+        return {"request_id":request_id, "status":decision, "email":send_status_email(request_id, *rejection_email(coach, university, note), recipients)}
+    # Selected: create the team's login (Supabase Auth hashes the password) and its team row.
+    password = new_password()
+    try:
+        uid = sb.auth.admin.create_user({"email": team_email(request_id), "password": password, "email_confirm": True}).user.id
+        try: sb.table("teams").insert({"request_id": request_id, "user_id": uid, "team_code": code}).execute()
+        except Exception:
+            sb.auth.admin.delete_user(uid); raise
+    except Exception as exc:
+        logging.exception("Could not create team login for %s", request_id)
+        sb.table("registrations").update({"status":"REVIEW_PENDING", "decision_at":None, "decision_by":None, "decision_note":None}).eq("request_id", request_id).execute()  # undo: stays pending
+        raise HTTPException(502, f"Could not create the team's login, so nothing was changed. Please try again. ({str(exc)[:160]})")
+    log_audit(request_id, admin["email"], "admin_decision", "REVIEW_PENDING", decision, note)
+    log_audit(request_id, admin["email"], "team_account_created", details=f"team_code={code or '-'}")
+    return {"request_id":request_id, "status":decision, "team_code":code, "email":send_status_email(request_id, *selection_email(coach, university, request_id, password, code, note), recipients)}
+
+# ---- Team management (selected teams) ----
+def team_row(request_id):
+    rows = sb.table("teams").select("*").eq("request_id", request_id).limit(1).execute().data
+    if not rows: raise HTTPException(404, "Team not found")
+    return rows[0]
+
+@app.get("/api/admin/teams")
+def list_teams(admin=Depends(require_admin)):
+    rows = sb.table("teams").select("*, registrations(university,country,coach_name,coach_email), clarification_questions(id), memorial_files(id)").order("created_at").execute().data
+    return {"items": [{"request_id": t["request_id"], "team_code": t["team_code"], "round_status": t["round_status"], "clarification_edits_used": t["clarification_edits_used"], "created_at": t["created_at"], **one(t["registrations"]), "questions": len(t["clarification_questions"]), "files": len(t["memorial_files"])} for t in rows]}
+
+@app.get("/api/admin/teams/{request_id}")
+def team_detail(request_id: str, admin=Depends(require_admin)):
+    rows = sb.table("teams").select("*, registrations(*, participants(*)), clarification_questions(*), memorial_files(*), messages(*)").eq("request_id", request_id).limit(1).execute().data
+    if not rows: raise HTTPException(404, "Team not found")
+    t = rows[0]; reg = one(t.pop("registrations")); t.pop("user_id", None)
+    reg["participants"] = sorted(reg.get("participants", []), key=lambda p: p["position"])
+    t["registration"] = reg
+    t["clarification_questions"].sort(key=lambda q: q["position"]); t["memorial_files"].sort(key=lambda f: f["slot"]); t["messages"].sort(key=lambda m: m["sent_at"], reverse=True)
+    return t
+
+@app.patch("/api/admin/teams/{request_id}")
+def update_team(request_id: str, payload: TeamPatch, admin=Depends(require_admin)):
+    upd = {}
+    if payload.team_code is not None:
+        code = payload.team_code.strip() or None
+        if code and code_taken(code, request_id): raise HTTPException(409, f"Team code '{code}' is already used by another team.")
+        upd["team_code"] = code
+    if payload.round_status: upd["round_status"] = payload.round_status
+    if not upd: raise HTTPException(422, "Nothing to update")
+    if not sb.table("teams").update(upd).eq("request_id", request_id).execute().data: raise HTTPException(404, "Team not found")
+    log_audit(request_id, admin["email"], "team_updated", details="; ".join(f"{k}={v}" for k, v in upd.items()))
+    return upd
+
+def team_coach(request_id):
+    return sb.table("registrations").select("coach_name,coach_email").eq("request_id", request_id).execute().data[0]
+
+@app.post("/api/admin/teams/{request_id}/reset-password")
+def reset_team_password(request_id: str, admin=Depends(require_admin)):
+    team = team_row(request_id)
+    if not team["user_id"]: raise HTTPException(409, "This team has no login account")
+    coach, password = team_coach(request_id), new_password()
+    sb.auth.admin.update_user_by_id(team["user_id"], {"password": password})
+    sb.table("teams").update({"must_change_password": True}).eq("request_id", request_id).execute()
+    log_audit(request_id, admin["email"], "team_password_reset")
+    return {"email": send_status_email(request_id, *password_reset_email(coach["coach_name"], request_id, password), team_recipients(request_id, coach["coach_email"]))}
+
+@app.post("/api/admin/teams/{request_id}/messages")
+def send_team_message(request_id: str, payload: MessageIn, admin=Depends(require_admin)):
+    team_row(request_id)
+    text = payload.body.strip()
+    if not text: raise HTTPException(422, "Message cannot be empty")
+    coach = team_coach(request_id)
+    sb.table("messages").insert({"request_id": request_id, "sender": admin["email"], "body": text}).execute()
+    log_audit(request_id, admin["email"], "message_sent", details=text[:200])
+    return {"email": send_status_email(request_id, *message_email(coach["coach_name"], text), team_recipients(request_id, coach["coach_email"]))}
 
 @app.get("/api/admin/audit/{request_id}")
 def audit_trail(request_id: str, admin=Depends(require_admin)):
     events = sb.table("audit_log").select("timestamp:at, request_id, actor, action, from_status, to_status, details").eq("request_id", request_id).order("at").execute().data
     return {"request_id":request_id, "events":events}
 
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+def xlsx_response(cols, rows, filename):
+    wb = Workbook(); ws = wb.active; ws.append(cols)
+    for r in rows:
+        ws.append(r)
+        for c in ws[ws.max_row]:  # user-typed text starting with = + - @ must stay text, never become a spreadsheet formula
+            if isinstance(c.value, str) and c.value[:1] in ("=", "+", "-", "@", "\t", "\r"): c.data_type = "s"
+    buffer = BytesIO(); wb.save(buffer); buffer.seek(0)
+    return StreamingResponse(buffer, media_type=XLSX, headers={"Content-Disposition": f"attachment; filename={filename}"})
+
 @app.get("/api/admin/export.xlsx")
 def export_xlsx(admin=Depends(require_admin)):
     cols = ["request_id", "created_at", "status", "university", "country", "coach_name", "coach_email", "coach_phone"] + [f"participant{i}_{f}" for i in (1, 2, 3) for f in ("name", "email", "year", "role")] + ["decision_at", "decision_by", "decision_note"]
-    wb = Workbook(); ws = wb.active; ws.append(cols)
-    for r in fetch_registrations(): ws.append([r.get(c) for c in cols])
-    buffer = BytesIO(); wb.save(buffer); buffer.seek(0)
-    return StreamingResponse(buffer, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition":"attachment; filename=sastra-registrations.xlsx"})
+    return xlsx_response(cols, [[r.get(c) for c in cols] for r in fetch_registrations()], "sastra-registrations.xlsx")
+
+@app.get("/api/admin/export/participants.xlsx")
+def export_participants(admin=Depends(require_admin)):
+    regs = sb.table("registrations").select("*, participants(*), teams(team_code)").order("created_at").execute().data
+    rows = [[r["request_id"], one(r.get("teams")).get("team_code"), r["status"], r["university"], r["country"], r["coach_name"], r["coach_email"], r["coach_phone"], p["position"], p["name"], p["email"], p["year"], p["role"]]
+            for r in regs for p in sorted(r["participants"], key=lambda p: p["position"])]
+    return xlsx_response(["Request ID", "Team code", "Registration status", "University", "Country", "Coach name", "Coach email", "Coach phone", "Participant no.", "Name", "Email", "Year / course", "Role"], rows, "sastra-participants.xlsx")
+
+@app.get("/api/admin/export/clarifications.xlsx")
+def export_clarifications(admin=Depends(require_admin)):
+    qs = sb.table("clarification_questions").select("request_id, position, question, created_at, updated_at, teams(team_code, registrations(university, country))").order("request_id").order("position").execute().data
+    rows = []
+    for q in qs:
+        t = one(q.get("teams")); reg = one(t.get("registrations"))
+        rows.append([t.get("team_code"), q["request_id"], reg.get("university"), reg.get("country"), q["position"], q["question"], q["created_at"], q["updated_at"]])
+    rows.sort(key=lambda r: (str(r[2] or ""), r[1], r[4]))
+    return xlsx_response(["Team code", "Request ID", "University", "Country", "Question no.", "Question", "Submitted", "Last edited"], rows, "sastra-clarification-questions.xlsx")
 
 
 # ---- Site content: published documents, announcements, schedule (site_content table + Storage bucket) ----

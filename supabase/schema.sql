@@ -69,6 +69,51 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users
   for each row execute function handle_new_user();
 
+-- ---- Selected teams (created when an admin selects a registration) ----
+-- Each team logs in to the participant portal with its Request ID. The login lives in Supabase Auth
+-- (passwords are bcrypt-hashed by Supabase and never stored by us); teams.user_id points at it.
+create table if not exists teams (
+  request_id               text primary key references registrations(request_id) on delete cascade,
+  user_id                  uuid unique references auth.users(id) on delete set null,
+  team_code                text,                              -- optional label typed by the admin
+  must_change_password     boolean not null default true,     -- cleared by the portal after the first change
+  clarification_edits_used smallint not null default 0 check (clarification_edits_used between 0 and 4),
+  round_status             text not null default 'PENDING' check (round_status in ('PENDING','SELECTED','REJECTED')),
+  created_at               timestamptz not null default now()
+);
+create unique index if not exists teams_code_uq on teams (lower(team_code)) where team_code is not null;
+
+create table if not exists clarification_questions (
+  id         bigint generated always as identity primary key,
+  request_id text not null references teams(request_id) on delete cascade,
+  position   smallint not null,
+  question   text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (request_id, position)
+);
+
+create table if not exists memorial_files (                   -- 4 slots per team: 2 PDF + 2 documents, 2 MB each
+  id           bigint generated always as identity primary key,
+  request_id   text not null references teams(request_id) on delete cascade,
+  slot         smallint not null check (slot between 1 and 4),
+  kind         text not null check (kind in ('pdf','doc')),
+  file_name    text not null,
+  storage_path text not null,
+  size_bytes   integer not null check (size_bytes <= 2097152),
+  uploaded_at  timestamptz not null default now(),
+  unique (request_id, slot)
+);
+
+create table if not exists messages (                         -- admin -> team messages
+  id         bigint generated always as identity primary key,
+  request_id text not null references teams(request_id) on delete cascade,
+  sender     text not null,
+  body       text not null,
+  sent_at    timestamptz not null default now()
+);
+create index if not exists messages_request_idx on messages (request_id, sent_at desc);
+
 -- Row Level Security: ON everywhere. The backend uses the service-role key (bypasses RLS);
 -- the public anon key can reach nothing except reading its own profile.
 alter table registrations enable row level security;
@@ -76,10 +121,18 @@ alter table participants  enable row level security;
 alter table audit_log     enable row level security;
 alter table site_content  enable row level security;
 alter table profiles      enable row level security;
+alter table teams                   enable row level security;
+alter table clarification_questions enable row level security;
+alter table memorial_files          enable row level security;
+alter table messages                enable row level security;
 drop policy if exists "read own profile" on profiles;
 create policy "read own profile" on profiles for select using (id = auth.uid());
 -- no insert/update policy on profiles: nobody can promote themselves. Admins are set by SQL (see README).
 
 -- Public bucket for the rulebook / proposition / memorial / announcement PDFs.
 insert into storage.buckets (id, name, public) values ('site-files', 'site-files', true)
+on conflict (id) do nothing;
+
+-- Private bucket for memorial submissions (2 MB per file); admins download through short-lived signed links.
+insert into storage.buckets (id, name, public, file_size_limit) values ('memorials', 'memorials', false, 2097152)
 on conflict (id) do nothing;

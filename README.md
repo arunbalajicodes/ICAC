@@ -54,12 +54,21 @@ Safe to re-run. Afterwards `backend/data/*.xlsx` is no longer used and can be de
 Add these in Project Settings -> Environment Variables: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `FRONTEND_ORIGIN` (your site URL), `EMAIL_TEST_MODE`, `SMTP_*`. Vercel also has a Supabase integration (Marketplace) that fills in the Supabase ones for you.
 Vercel limits request bodies to 4.5 MB, so published PDFs are capped at 4 MB.
 
+## Admin portal (`/#admin`)
+Sign in with a Supabase Auth account whose `profiles.role` is `admin`. Three tabs:
+- **Registrations** (primary): download buttons at the top (all clarification questions, all participants, registrations), the review queue, and Select / Reject. **Selecting** a team (optionally with a team code and a note) creates its Participant Portal login in Supabase Auth (User ID = the Request ID, generated 10-character password: 4 letters + 6 digits, hashed by Supabase) and emails the login details to the coach and all participants, organisers on CC.
+- **Team management**: every selected team. Open one for a left menu: Team details (incl. team code, Reset password), Clarification questions, Memorial submission, Status (pending / selected / rejected) and Send message (emailed to the team, and kept in the `messages` table).
+- **Site content** (secondary): documents, announcements, dates, FAQs, contacts, prizes.
+
+Teams have no real email on their Auth account (their identifier is `<request-id>@teams.icac.invalid`, hidden from users), so a forgotten password is handled by the admin using **Reset password**. `EMAIL_CC` (default: the two organiser addresses) is copied on every email.
+
 ## Data model (Supabase Postgres)
 - `registrations` + `participants`: one team per university (unique index), 1-3 participants each.
 - `audit_log`: append-only events (also records site-content changes under `request_id = 'SITE'`).
 - `site_content`: documents, announcements, schedule, FAQs, contacts, prizes (one JSON row per section).
+- `teams` (+ `clarification_questions`, `memorial_files`, `messages`): created when a registration is selected; one Auth login per team.
 - `profiles`: one row per Supabase Auth user; `role` is `admin` or `participant`.
-- Storage bucket `site-files`: published PDFs.
+- Storage buckets: `site-files` (public PDFs) and `memorials` (private, 2 MB per file, for the participant portal).
 All tables have Row Level Security on; only the backend (service-role key) reads or writes them.
 
 ## Email testing
