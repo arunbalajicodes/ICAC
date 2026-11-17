@@ -62,6 +62,11 @@ Sign in with a Supabase Auth account whose `profiles.role` is `admin`. Three tab
 
 Teams have no real email on their Auth account (their identifier is `<request-id>@teams.icac.invalid`, hidden from users), so a forgotten password is handled by the admin using **Reset password**. `EMAIL_CC` (default: the two organiser addresses) is copied on every email.
 
+## Participant portal (`/#portal`)
+Selected teams sign in with their **Request ID** and the emailed temporary password (the public site has a "Login" link). First sign-in forces a password change. Left menu: Team details (with the team code), Clarification questions, Memorial submission, Messages.
+- **Clarification questions** open when the *Moot proposition* PDF is published under Site content. A team's first save is free; after that it may edit its saved questions 4 times. Answers are released on the public site.
+- **Memorial submission** opens when the *Memorial guidelines* PDF is published. 4 files per team (2 PDF + 2 Word `.doc`/`.docx`), 2 MB each, stored in the private `memorials` bucket; admins download them from the team page.
+
 ## Data model (Supabase Postgres)
 - `registrations` + `participants`: one team per university (unique index), 1-3 participants each.
 - `audit_log`: append-only events (also records site-content changes under `request_id = 'SITE'`).

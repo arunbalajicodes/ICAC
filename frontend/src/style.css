@@ -490,3 +490,18 @@ footer:before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;
 .empty-note{margin:14px 0 0;padding:22px;border:1px dashed var(--line);border-radius:12px;text-align:center;color:var(--muted);font-size:13px}
 .msg-text{white-space:pre-wrap}
 @media(max-width:800px){.team-layout{grid-template-columns:1fr}.team-nav{display:flex;overflow-x:auto;position:static;gap:6px}.team-nav button{white-space:nowrap}.team-body{padding:18px}.team-head{flex-direction:column}}
+
+/* ---- participant portal ---- */
+.portal-layout{margin-top:26px}
+.team-code{font-size:22px;letter-spacing:.04em;color:var(--navy)}
+.info-note{margin:12px 0 4px;padding:14px 16px;border-radius:12px;background:#eef3fd;border:1px solid #d3e0f8;color:#25324d;font-size:13px;line-height:1.65}
+.info-note p{margin:0 0 8px}.info-note p:last-child{margin:0}
+.q-row{display:flex;gap:8px;align-items:flex-start}.q-row .admin-textarea{flex:1}
+.q-add{display:flex;gap:10px;align-items:flex-start;margin-top:16px}.q-add .admin-textarea{flex:1}
+.q-plus{height:44px;width:44px;padding:0;justify-content:center;flex:none}
+.slots{display:grid;gap:12px;margin-top:16px}
+.slot{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;padding:16px;border:1px solid var(--line);border-radius:12px;background:#fdfdfe}
+.slot b{display:block;font-size:14px}.slot small{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:11px;margin-top:5px;overflow-wrap:anywhere}
+.slot .se-actions{display:flex;gap:8px;margin:0}
+.secondary.busy{opacity:.6;pointer-events:none}
+label.secondary{cursor:pointer}

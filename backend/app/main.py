@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 from typing import Literal, Optional
 from fastapi import Depends, FastAPI, HTTPException, Header, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from urllib.parse import unquote
 from fastapi.responses import RedirectResponse, StreamingResponse
 from pydantic import BaseModel, EmailStr, Field, TypeAdapter, ValidationError
 from openpyxl import Workbook
@@ -53,6 +54,12 @@ class TeamPatch(BaseModel):
 
 class MessageIn(BaseModel):
     body: str = Field(min_length=1, max_length=3000)
+
+class PasswordIn(BaseModel):
+    new_password: str = Field(min_length=8, max_length=72)  # 72 = bcrypt's limit
+
+class QuestionsIn(BaseModel):
+    questions: list[str] = Field(min_length=1, max_length=20)
 
 
 def now(): return datetime.now(TZ).isoformat(timespec="seconds")
@@ -167,7 +174,7 @@ def health(): return {"ok": True, "event": CONFIG["event_name"]}
 def public_config():
     current = datetime.now(TZ)
     opens, closes = parse_time("registration_open"), parse_time("registration_close")
-    return {"event_name":CONFIG["event_name"], "event_start":CONFIG["event_start"], "event_end":CONFIG["event_end"], "registration_open":CONFIG["registration_open"], "registration_close":CONFIG["registration_close"], "registration_open_now":opens <= current <= closes, "timezone":CONFIG.get("timezone"), "max_participants_per_team":CONFIG.get("max_participants_per_team",3), "email_test_mode":os.getenv("EMAIL_TEST_MODE","true").lower()=="true"}
+    return {"event_name":CONFIG["event_name"], "event_start":CONFIG["event_start"], "event_end":CONFIG["event_end"], "registration_open":CONFIG["registration_open"], "registration_close":CONFIG["registration_close"], "registration_open_now":opens <= current <= closes, "timezone":CONFIG.get("timezone"), "max_participants_per_team":CONFIG.get("max_participants_per_team",3), "team_email_domain":TEAM_EMAIL_DOMAIN, "email_test_mode":os.getenv("EMAIL_TEST_MODE","true").lower()=="true"}
 
 @app.get("/api/admin/me")
 def admin_me(admin=Depends(require_admin)): return admin
@@ -441,3 +448,121 @@ async def set_content(section: str, request: Request, admin=Depends(require_admi
         drop_pdfs([n for n in stored if n not in used])
     log_audit("SITE", admin["email"], f"{section.upper()}_UPDATED")
     return value
+
+
+# ---- Admin: download a team's memorial file ----
+MEMORIALS = "memorials"  # private bucket
+
+@app.get("/api/admin/teams/{request_id}/files/{slot}/link")
+def memorial_link(request_id: str, slot: int, admin=Depends(require_admin)):
+    rows = sb.table("memorial_files").select("storage_path,file_name").eq("request_id", request_id).eq("slot", slot).limit(1).execute().data
+    if not rows: raise HTTPException(404, "File not found")
+    bucket = sb.storage.from_(MEMORIALS)
+    try: res = bucket.create_signed_url(rows[0]["storage_path"], 60, {"download": rows[0]["file_name"]})
+    except TypeError: res = bucket.create_signed_url(rows[0]["storage_path"], 60)
+    url = res.get("signedURL") or res.get("signedUrl")
+    if url and not url.startswith("http"): url = os.environ["SUPABASE_URL"].rstrip("/") + "/storage/v1" + url
+    log_audit(request_id, admin["email"], "memorial_file_downloaded", details=f"slot {slot}: {rows[0]['file_name']}")
+    return {"url": url, "name": rows[0]["file_name"]}
+
+
+# ---- Participant portal: a team signs in with Supabase Auth (User ID = its Request ID) ----
+MAX_FILE, MAX_EDITS = 2 * 1024 * 1024, 4
+SLOT_KIND = {1: "pdf", 2: "pdf", 3: "doc", 4: "doc"}   # 2 PDFs + 2 Word documents
+DOC_TYPES = {".docx": ("application/vnd.openxmlformats-officedocument.wordprocessingml.document", b"PK\x03\x04"), ".doc": ("application/msword", b"\xd0\xcf\x11\xe0")}
+
+def require_team(authorization: Optional[str] = Header(default=None)):
+    if not authorization or not authorization.lower().startswith("bearer "): raise HTTPException(401, "Sign-in required")
+    try: user = sb.auth.get_user(authorization.split(" ", 1)[1]).user
+    except Exception: raise HTTPException(401, "Session expired; sign in again")
+    if not user: raise HTTPException(401, "Session expired; sign in again")
+    rows = sb.table("teams").select("*").eq("user_id", user.id).limit(1).execute().data
+    if not rows: raise HTTPException(403, "This account is not a team account")
+    return rows[0]
+
+def require_ready_team(team=Depends(require_team)):
+    if team["must_change_password"]: raise HTTPException(403, "Please change your temporary password first.")
+    return team
+
+def stage_open(doc):  # a stage opens when the organisers publish its document under Site content
+    return bool(read_site().get("documents", {}).get(doc, {}).get("file"))
+
+@app.get("/api/team/me")
+def team_me(team=Depends(require_team)):
+    rid = team["request_id"]
+    reg = sb.table("registrations").select("university,country,coach_name,coach_email,coach_phone,participants(*)").eq("request_id", rid).limit(1).execute().data[0]
+    reg["participants"] = sorted(reg["participants"], key=lambda p: p["position"])
+    return {"request_id": rid, "team_code": team["team_code"], "must_change_password": team["must_change_password"], "round_status": team["round_status"], "registration": reg,
+            "clarifications_open": stage_open("proposition"), "memorial_open": stage_open("memorial"), "edits_used": team["clarification_edits_used"], "max_edits": MAX_EDITS,
+            "questions": sb.table("clarification_questions").select("position,question,updated_at").eq("request_id", rid).order("position").execute().data,
+            "files": sb.table("memorial_files").select("slot,kind,file_name,size_bytes,uploaded_at").eq("request_id", rid).order("slot").execute().data,
+            "messages": sb.table("messages").select("id,body,sent_at").eq("request_id", rid).order("sent_at", desc=True).execute().data}
+
+@app.post("/api/team/password")
+def team_password(payload: PasswordIn, team=Depends(require_team)):
+    pw = payload.new_password
+    if not (re.search(r"[A-Za-z]", pw) and re.search(r"\d", pw)): raise HTTPException(422, "Password must contain at least one letter and one digit.")
+    sb.auth.admin.update_user_by_id(team["user_id"], {"password": pw})
+    sb.table("teams").update({"must_change_password": False}).eq("request_id", team["request_id"]).execute()
+    log_audit(team["request_id"], team["request_id"], "team_password_changed")
+    return {"ok": True}
+
+@app.put("/api/team/questions")
+def save_questions(payload: QuestionsIn, team=Depends(require_ready_team)):
+    if not stage_open("proposition"): raise HTTPException(403, "Clarification questions open once the moot proposition is released.")
+    new = [q.strip() for q in payload.questions]
+    if any(not q or len(q) > 1000 for q in new): raise HTTPException(422, "Each question must be between 1 and 1000 characters.")
+    rid, used = team["request_id"], team["clarification_edits_used"]
+    old = sb.table("clarification_questions").select("position,question").eq("request_id", rid).order("position").execute().data
+    if [o["question"] for o in old] == new: return {"saved": False, "edits_used": used}   # nothing changed: no edit is spent
+    if old:  # the first save is free; every later change spends one of the 4 edits
+        if used >= MAX_EDITS: raise HTTPException(403, f"You have used all {MAX_EDITS} edits of your clarification questions.")
+        if not sb.table("teams").update({"clarification_edits_used": used + 1}).eq("request_id", rid).eq("clarification_edits_used", used).execute().data:
+            raise HTTPException(409, "Your questions were changed in another window. Reload the page and try again.")
+        used += 1
+    before = {o["position"]: o["question"] for o in old}
+    changed = [{"request_id": rid, "position": i + 1, "question": q, "updated_at": now()} for i, q in enumerate(new) if before.get(i + 1) != q]
+    if changed: sb.table("clarification_questions").upsert(changed, on_conflict="request_id,position").execute()
+    if len(old) > len(new): sb.table("clarification_questions").delete().eq("request_id", rid).gt("position", len(new)).execute()
+    log_audit(rid, rid, "clarification_questions_saved", details=f"{len(new)} questions; edits used {used}/{MAX_EDITS}")
+    return {"saved": True, "edits_used": used}
+
+@app.put("/api/team/memorial/{slot}")
+async def upload_memorial(slot: int, request: Request, team=Depends(require_ready_team)):
+    kind = SLOT_KIND.get(slot)
+    if not kind: raise HTTPException(404, "Unknown slot")
+    if not stage_open("memorial"): raise HTTPException(403, "Memorial submission has not opened yet.")
+    data = await request.body()
+    if not data: raise HTTPException(400, "The file is empty.")
+    if len(data) > MAX_FILE: raise HTTPException(413, "Each file must be 2 MB or smaller.")
+    name = unquote(request.headers.get("x-file-name", "")).replace("\\", "/").split("/")[-1].strip()[:120] or f"slot-{slot}"
+    ext = os.path.splitext(name)[1].lower()
+    if kind == "pdf":
+        if ext != ".pdf" or not data.startswith(b"%PDF"): raise HTTPException(400, "Slots 1 and 2 accept PDF files only.")
+        ctype = "application/pdf"
+    else:
+        doc = DOC_TYPES.get(ext)
+        if not doc or not data.startswith(doc[1]): raise HTTPException(400, "Slots 3 and 4 accept Word documents (.doc or .docx) only.")
+        ctype = doc[0]
+    rid = team["request_id"]; path = f"{rid}/slot{slot}-{uuid.uuid4().hex[:8]}{ext}"
+    bucket = sb.storage.from_(MEMORIALS)
+    bucket.upload(path, data, {"content-type": ctype})
+    old = sb.table("memorial_files").select("storage_path").eq("request_id", rid).eq("slot", slot).execute().data
+    try: sb.table("memorial_files").upsert({"request_id": rid, "slot": slot, "kind": kind, "file_name": name, "storage_path": path, "size_bytes": len(data), "uploaded_at": now()}, on_conflict="request_id,slot").execute()
+    except Exception:
+        bucket.remove([path]); raise   # don't leave an orphan file behind
+    if old: bucket.remove([old[0]["storage_path"]])
+    log_audit(rid, rid, "memorial_file_uploaded", details=f"slot {slot}: {name} ({len(data)//1024} KB)")
+    return {"slot": slot, "file_name": name, "size_bytes": len(data)}
+
+@app.delete("/api/team/memorial/{slot}")
+def delete_memorial(slot: int, team=Depends(require_ready_team)):
+    if slot not in SLOT_KIND: raise HTTPException(404, "Unknown slot")
+    if not stage_open("memorial"): raise HTTPException(403, "Memorial submission has not opened yet.")
+    rid = team["request_id"]
+    old = sb.table("memorial_files").select("storage_path,file_name").eq("request_id", rid).eq("slot", slot).execute().data
+    if not old: raise HTTPException(404, "No file in this slot")
+    sb.table("memorial_files").delete().eq("request_id", rid).eq("slot", slot).execute()
+    sb.storage.from_(MEMORIALS).remove([old[0]["storage_path"]])
+    log_audit(rid, rid, "memorial_file_removed", details=f"slot {slot}: {old[0]['file_name']}")
+    return {"ok": True}

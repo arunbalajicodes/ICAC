@@ -179,14 +179,15 @@ function TeamQuestions({t}) {
   </>;
 }
 
-function TeamMemorial({t}) {
+function TeamMemorial({t, call, setError}) {
   const fs = t.memorial_files;
+  const get = async slot => { try { const d = await call(`/api/admin/teams/${t.request_id}/files/${slot}/link`); const a = document.createElement('a'); a.href = d.url; a.download = d.name; a.click(); } catch (e) { setError(e.message); } };
   return <>
     <h4>Memorial submission</h4>
     <p className="muted">Up to 4 files per team (2 PDF and 2 documents), 2 MB each. <b>{fs.length} of 4</b> uploaded.</p>
     {fs.length === 0 ? <p className="empty-note">No files submitted yet.</p> :
-      <div className="table-scroll"><table><thead><tr><th>SLOT</th><th>FILE</th><th>TYPE</th><th>SIZE</th><th>UPLOADED</th></tr></thead><tbody>
-        {fs.map(f => <tr key={f.id}><td>{f.slot}</td><td><b>{f.file_name}</b></td><td>{f.kind === 'pdf' ? 'PDF' : 'Document'}</td><td>{(f.size_bytes / 1024).toFixed(0)} KB</td><td>{when(f.uploaded_at)}</td></tr>)}
+      <div className="table-scroll"><table><thead><tr><th>SLOT</th><th>FILE</th><th>TYPE</th><th>SIZE</th><th>UPLOADED</th><th></th></tr></thead><tbody>
+        {fs.map(f => <tr key={f.id}><td>{f.slot}</td><td><b>{f.file_name}</b></td><td>{f.kind === 'pdf' ? 'PDF' : 'Document'}</td><td>{(f.size_bytes / 1024).toFixed(0)} KB</td><td>{when(f.uploaded_at)}</td><td><button className="text-action" onClick={() => get(f.slot)}><Download size={14}/> Download</button></td></tr>)}
       </tbody></table></div>}
   </>;
 }
