@@ -1,10 +1,24 @@
 # SASTRA International Commercial Arbitration Moot Court Competition — Registration Starter
 
-React + FastAPI starter with an Apple-inspired UI, Excel workbook storage, admin review, audit events, XLSX export, and Gmail SMTP notifications.
+React + FastAPI app with Supabase (Postgres, Auth, Storage): team registration, admin review, audit events, XLSX export, and Gmail SMTP notifications.
 
 ## Requirements
 - Python 3.10+
 - Node.js 20+
+
+## 0. Supabase setup (one time)
+1. Create a free project at supabase.com (note the database password; you won't need it for this app).
+2. **SQL Editor -> New query**: paste all of `supabase/schema.sql` -> Run. This creates the tables, the signup trigger, Row Level Security and the `site-files` storage bucket. Safe to re-run.
+3. **Project Settings -> API**: copy the Project URL, the `anon` key and the `service_role` key.
+   - `service_role` is a secret: backend `.env` / Vercel env only, never in frontend code.
+4. **Authentication -> Providers -> Email**: turn **off** "Allow new users to sign up" (admins are invited, not self-registered). Later, when the participant portal exists, turn it back on.
+5. **Authentication -> Users -> Add user -> Create new user**: enter the admin email + a strong password, tick "Auto Confirm User".
+6. Make that user an admin (SQL Editor):
+   ```sql
+   update profiles set role = 'admin', display_name = 'Your Name' where email = 'admin@example.com';
+   ```
+   Every new Auth user starts as `participant`; only this SQL (or the dashboard table editor) can promote.
+7. Optional: copy the old Excel data and `config/site.json` into Supabase (see "Importing old data" below).
 
 ## 1. Backend
 ```bash
@@ -13,21 +27,40 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
 cp .env.example .env
-# Edit .env. Gmail SMTP requires a Google App Password (2-Step Verification enabled).
+# Edit .env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SMTP settings.
 uvicorn app.main:app --reload
 ```
 API docs: http://127.0.0.1:8000/docs
-
-The first run creates `data/registrations.xlsx` and `data/admins.xlsx` from the configured files. Add admin email(s) to the `admins` sheet (or edit `data/admins.xlsx`) and restart. The default seed admin email is `raghav.kartik2005@gmail.com`; change `ADMIN_PASSWORD` in `.env` before use. Admin access requires both an active email in the Admins sheet and the configured password.
 
 ## 2. Frontend
 In another terminal:
 ```bash
 cd frontend
+cp .env.example .env   # set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
 npm install
 npm run dev
 ```
-Open the URL printed by Vite. Admin sign-in is available from the top-right button.
+Open the URL printed by Vite, then `/#admin` and sign in with the admin account from step 5.
+
+## Importing old data
+```bash
+cd backend && source .venv/bin/activate
+python scripts/import_legacy.py              # site.json + registrations + audit + rules.pdf
+python scripts/import_legacy.py --site-only  # skip registrations/audit (e.g. they were test data)
+```
+Safe to re-run. Afterwards `backend/data/*.xlsx` is no longer used and can be deleted.
+
+## Deploying on Vercel
+Add these in Project Settings -> Environment Variables: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `FRONTEND_ORIGIN` (your site URL), `EMAIL_TEST_MODE`, `SMTP_*`. Vercel also has a Supabase integration (Marketplace) that fills in the Supabase ones for you.
+Vercel limits request bodies to 4.5 MB, so published PDFs are capped at 4 MB.
+
+## Data model (Supabase Postgres)
+- `registrations` + `participants`: one team per university (unique index), 1-3 participants each.
+- `audit_log`: append-only events (also records site-content changes under `request_id = 'SITE'`).
+- `site_content`: documents, announcements, schedule, FAQs, contacts, prizes (one JSON row per section).
+- `profiles`: one row per Supabase Auth user; `role` is `admin` or `participant`.
+- Storage bucket `site-files`: published PDFs.
+All tables have Row Level Security on; only the backend (service-role key) reads or writes them.
 
 ## Email testing
 The `.env.example` routes all notifications to `thanosragu2005@gmail.com` and CCs `raghav.kartik2005@gmail.com` by default. This is deliberately test-safe. Set `SMTP_USER` and `SMTP_APP_PASSWORD` to your own Gmail address and Google App Password. Never use your normal Google password. The app records mail delivery errors in logs/audit rather than losing the registration.
@@ -35,16 +68,8 @@ The `.env.example` routes all notifications to `thanosragu2005@gmail.com` and CC
 ## Event dates
 Edit `backend/app/config.json` (`event_start`, `event_end`, `registration_open`, `registration_close`). Timestamps are interpreted in the configured `timezone`.
 
-## Excel storage layout
-- `registrations.xlsx`: one row per team, including up to three participants.
-- `admins.xlsx`: admin email, active flag, display name.
-- `audit.xlsx`: append-only audit events searchable by request ID.
-
-Excel is suitable for a small demo / pilot. It is not a safe multi-worker or high-concurrency production database: use PostgreSQL (which you mentioned you have) before public launch, and add HTTPS, rate limiting, stronger admin identity, backups, and deployment secrets.
-
-
 ## Gmail SMTP troubleshooting
-The starter intentionally does not include Gmail credentials. If `SMTP_USER` or `SMTP_APP_PASSWORD` is blank, the API records `email_skipped` in `audit.xlsx` and prints a warning in the terminal; no email will be sent.
+The starter intentionally does not include Gmail credentials. If `SMTP_USER` or `SMTP_APP_PASSWORD` is blank, the API records `email_skipped` in `audit_log` and prints a warning in the terminal; no email will be sent.
 
 1. Use a Gmail account you control as `SMTP_USER`.
 2. Enable Google 2-Step Verification for that account.
@@ -53,14 +78,9 @@ The starter intentionally does not include Gmail credentials. If `SMTP_USER` or 
 5. Keep `EMAIL_TEST_MODE=true` while testing. Every message is routed to `TEST_RECIPIENT` with `TEST_CC` copied.
 6. Stop and restart Uvicorn after editing `.env`.
 7. Submit a new test registration and watch the backend Terminal for `Email not sent`, `SMTP failure`, or a successful request. Check Gmail Spam, All Mail, and search for the subject too.
-8. If it still fails, inspect the matching request ID in `backend/data/audit.xlsx` for `email_skipped`, `email_failed`, or `email_sent`. The last two indicate whether the SMTP server accepted the message; SMTP acceptance is not a guarantee of inbox placement.
+8. If it still fails, query `audit_log` in Supabase for the request ID and look for `email_skipped`, `email_failed`, or `email_sent`. The last two indicate whether the SMTP server accepted the message; SMTP acceptance is not a guarantee of inbox placement.
 
 Never commit `.env` or share the App Password. Gmail SMTP uses `smtp.gmail.com`, port `587`, with STARTTLS.
 
 ## Site content (documents, announcements, dates)
-Everything that changes after launch lives in `backend/config/`:
-- `site.json`: document slots (rules, proposition, memorial), announcements (each can carry a PDF), important dates, prize money, FAQs and coordinator contacts.
-- `files/`: the published PDFs (`rules.pdf`, `proposition.pdf`, `memorial.pdf`).
-
-Admins manage all of it from the admin portal, under "Publish documents & updates": upload/replace/remove a PDF, add or remove announcements, edit the dates. Changes appear on the public site immediately. The public site reads `GET /api/site` and serves PDFs from `GET /api/files/{key}`.
-Note: on Vercel the filesystem is ephemeral, so uploads there need object storage before real use.
+Everything that changes after launch lives in Supabase: the `site_content` table and the `site-files` bucket. Admins manage it from the admin portal under "Publish documents & updates" (upload/replace/remove PDFs, announcements, dates, FAQs, contacts, prizes). Changes appear on the public site immediately. `GET /api/site` serves the content; `/api/files/{key}` redirects to the stored PDF.

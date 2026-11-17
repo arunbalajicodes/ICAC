@@ -7,3 +7,7 @@ node_modules/
 
 # reference poster (not tracked)
 Pasted image.png
+
+# local build/venv
+dist/
+.venv/
