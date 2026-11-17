@@ -505,3 +505,49 @@ footer:before{content:"";position:absolute;left:0;right:0;top:-24px;height:24px;
 .slot .se-actions{display:flex;gap:8px;margin:0}
 .secondary.busy{opacity:.6;pointer-events:none}
 label.secondary{cursor:pointer}
+
+/* ---- admin + participant portal: same typography as the public site (DM Sans body, Playfair headings, 14.5-16px text) ---- */
+.app-shell .admin-panel{font-size:15px;line-height:1.65;color:var(--ink)}
+.app-shell .admin-panel .muted{font-size:14.5px;line-height:1.7;color:#5f6370}
+.app-shell .admin-panel .admin-title h2{font-size:clamp(32px,3.4vw,44px);letter-spacing:-.02em;line-height:1.15}
+.app-shell .admin-tabs button{font-family:var(--sans);font-size:15px;padding:14px 20px}
+.app-shell .admin-panel th{font-size:11.5px;letter-spacing:.12em;padding:15px 18px;color:var(--navy)}
+.app-shell .admin-panel td{font-size:14.5px;padding:17px 18px;color:#3d4150}
+.app-shell .admin-panel td b{font-size:15px;font-weight:600;color:var(--ink)}
+.app-shell .admin-panel td small{font-size:12.5px;margin-top:4px}
+.app-shell .admin-panel .mono{font-size:12.5px}
+.app-shell .admin-panel .empty{font-size:14.5px}
+.app-shell .admin-panel .secondary,.app-shell .admin-panel .approve,.app-shell .admin-panel .reject{font-size:14px;font-weight:600;min-height:44px}
+.app-shell .admin-panel .text-action{font-size:14px;font-weight:600}
+.app-shell .admin-panel .status-pill{font-size:12px;font-weight:600;padding:6px 12px}
+.app-shell .admin-panel .detail-grid small,.app-shell .admin-panel .stat-card small{font-size:11.5px;letter-spacing:.12em}
+.app-shell .admin-panel .detail-grid b{font-size:15.5px;color:var(--ink)}
+.app-shell .admin-panel .detail-grid span{font-size:14.5px;color:#4a4f5c}
+.app-shell .admin-panel .detail-head h3{font-family:var(--serif);font-weight:500;font-size:26px;letter-spacing:-.01em;color:var(--navy)}
+.app-shell .admin-panel .decision-row input,.app-shell .admin-panel .decision-row select,.app-shell .admin-panel .inline-edit input,.app-shell .admin-panel .table-toolbar select{height:48px;font-size:14.5px;padding:0 14px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.app-shell .admin-panel .searchbox input{font-size:14.5px}
+.app-shell .admin-panel .admin-textarea{font-family:var(--sans);font-size:14.5px;line-height:1.6;padding:12px 14px;border-radius:12px;border:1px solid var(--line)}
+.app-shell .admin-panel .stat-card{padding:22px;gap:6px}
+.app-shell .admin-panel .stat-card small{color:#5f6370;letter-spacing:.1em}
+.app-shell .admin-panel .stat-card strong{font-family:var(--serif);font-variant-numeric:lining-nums;font-weight:500;font-size:40px;line-height:1.1;letter-spacing:-.02em;color:var(--navy)}
+.app-shell .admin-panel .stat-card:nth-child(n) .stat-icon{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:#e8eefb;color:var(--navy)}
+.app-shell .admin-panel .team-head h3{font-family:var(--serif);font-weight:500;font-size:clamp(28px,3vw,36px);letter-spacing:-.01em;color:var(--navy)}
+.app-shell .admin-panel .team-nav button{font-family:var(--sans);font-size:14.5px;padding:13px 16px}
+.app-shell .admin-panel .team-body{background:#fff8ea;border:1px solid var(--line);border-radius:var(--r);padding:28px}
+.app-shell .admin-panel .team-body h4{font-family:var(--serif);font-weight:500;font-size:26px;letter-spacing:-.01em;color:var(--navy);margin-bottom:10px}
+.app-shell .admin-panel .team-code{font-size:26px}
+.app-shell .admin-panel .qlist{font-size:15px}
+.app-shell .admin-panel .qlist small,.app-shell .admin-panel .slot small{font-size:12.5px}
+.app-shell .admin-panel .slot{background:#fff;border-radius:12px;padding:18px}
+.app-shell .admin-panel .slot b{font-size:15.5px}
+.app-shell .admin-panel .empty-note{font-size:14.5px;background:#fff}
+.app-shell .admin-panel .info-note{font-size:14.5px;line-height:1.7;background:#fff;color:var(--ink);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:8px}
+.app-shell .admin-panel .notice{font-size:14.5px}
+.app-shell .admin-panel .timeline-item b{font-size:14.5px}
+.app-shell .admin-panel .timeline-item small{font-size:12.5px}
+.app-shell .admin-panel .timeline-item p{font-size:14.5px}
+.app-shell .admin-login h2{font-size:32px;letter-spacing:-.02em}
+.app-shell .admin-login .muted{font-size:14.5px}
+.app-shell .admin-login .fineprint{font-size:12.5px}
+@media(max-width:800px){.app-shell .admin-panel .team-body{padding:18px}.app-shell .admin-panel .stat-card strong{font-size:32px}}
+.app-shell .admin-panel .audit-title{font-family:var(--serif);font-weight:500;font-size:20px;color:var(--navy);padding-top:24px}
