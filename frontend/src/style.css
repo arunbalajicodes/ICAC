@@ -551,3 +551,14 @@ label.secondary{cursor:pointer}
 .app-shell .admin-login .fineprint{font-size:12.5px}
 @media(max-width:800px){.app-shell .admin-panel .team-body{padding:18px}.app-shell .admin-panel .stat-card strong{font-size:32px}}
 .app-shell .admin-panel .audit-title{font-family:var(--serif);font-weight:500;font-size:20px;color:var(--navy);padding-top:24px}
+
+/* Privacy policy page */
+.policy{max-width:860px;margin:40px auto 90px;line-height:1.75;font-size:14.5px}
+.policy h1{font-size:clamp(30px,4vw,42px);letter-spacing:-.04em;margin:10px 0 6px}
+.policy h2{font-size:20px;margin:34px 0 10px;scroll-margin-top:96px}
+.policy ul{padding-left:22px}.policy li{margin:5px 0}
+.policy-toc{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:2px 18px;margin:22px 0;padding:16px;border:1px solid var(--line);border-radius:14px}
+.policy-toc button{border:0;background:none;text-align:left;color:var(--blue);font-size:13px;padding:5px 0}
+.policy-table{width:100%;border-collapse:collapse;white-space:normal;margin:12px 0;font-size:13px}
+.policy-table th,.policy-table td{border:1px solid var(--line);padding:10px 12px;vertical-align:top;font-size:13px;color:inherit}
+.policy-table th{background:#fafafd;font-size:11px}
