@@ -77,7 +77,7 @@ def log_audit(request_id, actor, action, from_status="", to_status="", details="
     sb.table("audit_log").insert({"request_id": request_id, "actor": actor, "action": action, "from_status": from_status or None, "to_status": to_status or None, "details": details or None}).execute()
 
 # ---- Email wording: edit the text here ----
-SHORT_EVENT = "SASTRA ICAC Moot Court Competition 2027"
+SHORT_EVENT = "SASTRA ICAC Moot Competition 2027"
 SIGNOFF = "Thanks and Regards,\nICAC Co-ordinators,\nSchool of Law,\nSASTRA Deemed To Be University"
 DEFAULT_CC = "127118023@sastra.ac.in,128087006@sastra.ac.in"  # organisers copied on every mail; override with EMAIL_CC
 QUOTE_ID = "Please quote the Request ID below in any correspondence regarding this registration."

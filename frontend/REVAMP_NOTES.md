@@ -1,4 +1,4 @@
-# SASTRA Moot Court — Frontend Revamp
+# SASTRA Moot Competition — Frontend Revamp
 
 ## What's changed
 - Updated the competition timeline:

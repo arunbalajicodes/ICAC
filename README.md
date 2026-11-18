@@ -1,4 +1,4 @@
-# SASTRA International Commercial Arbitration Moot Court Competition — Registration Starter
+# SASTRA International Commercial Arbitration Moot Competition — Registration Starter
 
 React + FastAPI app with Supabase (Postgres, Auth, Storage): team registration, admin review, audit events, XLSX export, and Gmail SMTP notifications.
 
