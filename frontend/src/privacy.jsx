@@ -5,8 +5,8 @@ import {ArrowUpRight} from 'lucide-react';
 const ORG = {
   name: 'School of Law, SASTRA Deemed to be University',
   address: 'Thanjavur, Tamil Nadu, India',
-  email: '127118023@sastra.ac.in',                 // TODO: privacy / data-request mailbox
-  officer: 'Raghav Karthik, Student Convenor, School of Law',  // TODO: name and designation
+  email: 'icac@sastra.ac.in',                 // TODO: privacy / data-request mailbox
+  officer: 'Raghav Kartik, Student Convenor, School of Law',  // TODO: name and designation
   updated: '18 November 2026',
   retention: '12 months after the competition concludes',   // TODO: confirm
 };
