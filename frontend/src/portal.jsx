@@ -1,4 +1,5 @@
 import React, {useEffect, useState} from 'react';
+import {Turnstile, TS_KEY} from './turnstile.jsx';
 import {ArrowUpRight, LogOut, Plus, Trash2, Upload, FileText, CheckCircle2} from 'lucide-react';
 
 const when = s => s ? new Date(s).toLocaleString('en-IN', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '—';
@@ -12,7 +13,7 @@ function Field({label, type = 'text', value, onChange, autoComplete}) {
 
 // Participant portal (/#portal): teams sign in with their Request ID (User ID) and password.
 export function Portal({API, sbToken}) {
-  const [domain, setDomain] = useState(''), [cred, setCred] = useState({ref:'', password:''}), [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const [domain, setDomain] = useState(''), [cred, setCred] = useState({ref:'', password:''}), [busy, setBusy] = useState(false), [error, setError] = useState(''), [cap, setCap] = useState(''), [capKey, setCapKey] = useState(0);
   const [token, setToken] = useState(''), [refresh, setRefresh] = useState(''), [me, setMe] = useState(null), [sec, setSec] = useState('details');
   useEffect(() => { fetch(API + '/api/config').then(r => r.json()).then(d => setDomain(d.team_email_domain)).catch(() => setError('Could not reach the server. Please try again.')); }, []);
   const call = async (path, opt = {}, tok = token) => {
@@ -23,15 +24,15 @@ export function Portal({API, sbToken}) {
   };
   const loadMe = (tok = token) => call('/api/team/me', {}, tok).then(setMe);
   const email = ref => `${ref.trim().toLowerCase()}@${domain}`;
-  async function signIn(ref, password) {
-    const s = await sbToken('password', {email:email(ref), password});
+  async function signIn(ref, password, captcha) {
+    const s = await sbToken('password', {email:email(ref), password, captcha});
     await loadMe(s.access_token);
     setToken(s.access_token); setRefresh(s.refresh_token);
   }
   async function onLogin(e) {
     e.preventDefault(); setBusy(true); setError('');
-    try { await signIn(cred.ref, cred.password); }
-    catch (err) { setError(/invalid login/i.test(err.message) ? 'Invalid User ID or password.' : err.message); }
+    try { await signIn(cred.ref, cred.password, cap); }
+    catch (err) { setCapKey(k => k + 1); setCap(''); setError(/invalid login/i.test(err.message) ? 'Invalid User ID or password.' : err.message); }
     finally { setBusy(false); }
   }
   useEffect(() => {
@@ -52,7 +53,8 @@ export function Portal({API, sbToken}) {
         <form onSubmit={onLogin}>
           <Field label="User ID (Request ID)" value={cred.ref} onChange={v => setCred({...cred, ref:v})} autoComplete="username"/>
           <Field label="Password" type="password" value={cred.password} onChange={v => setCred({...cred, password:v})} autoComplete="current-password"/>
-          <button className="primary full" disabled={busy || !domain}>{busy ? 'Signing in…' : 'Sign in'} <ArrowUpRight size={17}/></button>
+          <Turnstile key={capKey} onToken={setCap}/>
+          <button className="primary full" disabled={busy || !domain || (!!TS_KEY && !cap)}>{busy ? 'Signing in…' : 'Sign in'} <ArrowUpRight size={17}/></button>
         </form>
         <p className="fineprint">Forgotten your password? Contact the organising committee to have a new one issued.</p></section>}
       {me && me.must_change_password && <ChangePassword me={me} call={call} onDone={async pw => { setBusy(true); try { await signIn(me.request_id, pw); } catch (e) { out('Password changed. Please sign in again with your new password.'); } finally { setBusy(false); } }} setError={setError} signOut={() => out()}/>}
