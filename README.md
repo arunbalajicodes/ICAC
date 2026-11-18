@@ -18,7 +18,6 @@ React + FastAPI app with Supabase (Postgres, Auth, Storage): team registration, 
    update profiles set role = 'admin', display_name = 'Your Name' where email = 'admin@example.com';
    ```
    Every new Auth user starts as `participant`; only this SQL (or the dashboard table editor) can promote.
-7. Optional: copy the old Excel data and `config/site.json` into Supabase (see "Importing old data" below).
 
 ## 1. Backend
 ```bash
@@ -41,14 +40,6 @@ npm install
 npm run dev
 ```
 Open the URL printed by Vite, then `/#admin` and sign in with the admin account from step 5.
-
-## Importing old data
-```bash
-cd backend && source .venv/bin/activate
-python scripts/import_legacy.py              # site.json + registrations + audit + rules.pdf
-python scripts/import_legacy.py --site-only  # skip registrations/audit (e.g. they were test data)
-```
-Safe to re-run. Afterwards `backend/data/*.xlsx` is no longer used and can be deleted.
 
 ## Deploying on Vercel
 Add these in Project Settings -> Environment Variables: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `FRONTEND_ORIGIN` (your site URL), `EMAIL_TEST_MODE`, `SMTP_*`. Vercel also has a Supabase integration (Marketplace) that fills in the Supabase ones for you.
