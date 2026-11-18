@@ -1,5 +1,5 @@
 from __future__ import annotations
-import json, os, re, secrets, smtplib, string, time, uuid, logging
+import json, os, re, secrets, smtplib, string, time, uuid, logging, urllib.parse, urllib.request
 from datetime import datetime
 from email.message import EmailMessage
 from io import BytesIO
@@ -42,6 +42,7 @@ class RegistrationIn(BaseModel):
     coach_email: EmailStr
     coach_phone: str = Field(min_length=6, max_length=30)
     participants: list[Participant] = Field(min_length=1, max_length=3)
+    captcha: str = Field(default="", max_length=4096)   # Cloudflare Turnstile token
 
 class DecisionIn(BaseModel):
     decision: str
@@ -202,8 +203,25 @@ def public_config():
 @app.get("/api/admin/me")
 def admin_me(admin=Depends(require_admin)): return admin
 
+_hits = {}
+def rate_limit(request: Request, limit=5, window=600):
+    ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "?")).split(",")[0].strip()
+    t = time.monotonic(); recent = [x for x in _hits.get(ip, []) if x > t - window]
+    if len(recent) >= limit: raise HTTPException(429, "Too many attempts. Please try again in a few minutes.")
+    _hits[ip] = recent + [t]   # ponytail: per-instance memory (serverless resets it); Turnstile is the real bot defence, use Redis/Upstash if abused
+
+def check_captcha(token, request: Request):
+    secret = os.getenv("TURNSTILE_SECRET", "")
+    if not secret: return   # not configured (local dev)
+    body = urllib.parse.urlencode({"secret": secret, "response": token, "remoteip": (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()}).encode()
+    try:
+        with urllib.request.urlopen(urllib.request.Request("https://challenges.cloudflare.com/turnstile/v0/siteverify", body), timeout=10) as r: ok = json.load(r).get("success")
+    except Exception: ok = False
+    if not ok: raise HTTPException(400, "Please complete the security check and try again.")
+
 @app.post("/api/registrations", status_code=201)
-def create_registration(payload: RegistrationIn):
+def create_registration(payload: RegistrationIn, request: Request):
+    rate_limit(request); check_captcha(payload.captcha, request)
     current = datetime.now(TZ)
     if not (parse_time("registration_open") <= current <= parse_time("registration_close")):
         raise HTTPException(403, "Registration is currently closed.")
