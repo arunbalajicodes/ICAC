@@ -3,10 +3,10 @@ import {ArrowUpRight} from 'lucide-react';
 
 // Fill these in before launch (they are shown on the page as-is).
 const ORG = {
-  name: 'Raghav Kartik, School of Law, SASTRA Deemed to be University',
+  name: 'School of Law, SASTRA Deemed to be University',
   address: 'Thanjavur, Tamil Nadu, India',
   email: '127118023@sastra.ac.in',                 // TODO: privacy / data-request mailbox
-  officer: 'Student Convenor, School of Law',  // TODO: name and designation
+  officer: 'Raghav Karthik, Student Convenor, School of Law',  // TODO: name and designation
   updated: '18 November 2026',
   retention: '12 months after the competition concludes',   // TODO: confirm
 };
